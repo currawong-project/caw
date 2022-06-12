@@ -9,6 +9,11 @@ void print( void* arg, const char* text )
 
 int main( int argc, char* argv[] )
 {
+  cw::log::createGlobal();
+  
+  cwLogInfo("Project template");
+
+  cw::log::destroyGlobal();
 
   return 0;
 }
