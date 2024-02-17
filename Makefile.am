@@ -1,5 +1,4 @@
 ACLOCAL_AMFLAGS = -I m4 # use custom macro's in ./m4 
-
 lib_LTLIBRARIES=
 bin_PROGRAMS=
 include_HEADERS=
@@ -14,9 +13,6 @@ include_HEADERS=
 # _GNU_SOURCE - turns on GNU specific extensions and gives correct prototype for double log2(double) 
 # -Wall turn on all warnings
 # -Wno-multichar - turns off multi-character constant warnings from cmAudioFile.c
-
-
-WS_DIR   = $(HOME)/sdk/libwebsockets/build/out
 
 
 AM_CPPFLAGS =   -I..  -I$(srcdir)/src/libcw
@@ -38,7 +34,7 @@ endif
 if OS_LINUX
 
 if OS_64
-  AM_LDFLAGS +=  -L/usr/lib64
+  AM_LDFLAGS += -L/usr/lib64/atlas -L/usr/lib64
   AM_CFLAGS  += -m64
 endif	
 
@@ -86,8 +82,6 @@ if cwWEB
 endif
 
 if cwWEBSOCK
-  # AM_CPPFLAGS += -I$(WS_DIR)/include
-  # AM_LDFLAGS  += -L$(WS_DIR)/lib
   src_proj_proj_LDADD +=  -lwebsockets
 endif
 

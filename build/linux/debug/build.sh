@@ -16,8 +16,6 @@ cd ${curdir}
 --enable-alsa \
 CFLAGS="-g -Wall" \
 CXXFLAGS="-g -Wall" \
-CPPFLAGS="-I${HOME}/sdk/libwebsockets/build/out/include" \
-LDFLAGS="-L${HOME}/sdk/libwebsockets/build/out/lib" \
 LIBS=
 
 
