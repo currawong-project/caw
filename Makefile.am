@@ -65,29 +65,29 @@ include src/libcw/Makefile.am
 #lib_LTLIBRARIES  += libcw.la 
 #include_HEADERS  += $(libcwHDR)
 
-src_proj_proj_SOURCES   =  $(libcwHDR) $(libcwSRC) src/proj/main.cpp 
+src_caw_caw_SOURCES   =  $(libcwHDR) $(libcwSRC) src/caw/main.cpp 
 
 # 1) autoconfig manual recommends setting direct referenes to non-3rd party libraries rather than using -L and -l
 # 2) -ldl is required for dlopen(),dlclose() ...
-# src_proj_proj_LDADD     = libcw.la  -lpthread -ldl
+# src_caw_caw_LDADD     = libcw.la  -lpthread -ldl
 
-src_proj_proj_LDADD     =   -lpthread -ldl
+src_caw_caw_LDADD     =   -lpthread -ldl
 
 if cwFFTW
-  src_proj_proj_LDADD += -lfftw3 -lfftw3f
+  src_caw_caw_LDADD += -lfftw3 -lfftw3f
 endif
 
 if cwWEB
-  src_proj_proj_LDADD += -lfftw3 -lfftw3f
+  src_caw_caw_LDADD += -lfftw3 -lfftw3f
 endif
 
 if cwWEBSOCK
-  src_proj_proj_LDADD +=  -lwebsockets
+  src_caw_caw_LDADD +=  -lwebsockets
 endif
 
 
-# src_proj_proj_CPPFLAGS  = -I$(srcdir)/src/libcw $(AM_CPPFLAGS)
-bin_PROGRAMS               += src/proj/proj
+# src_caw_caw_CPPFLAGS  = -I$(srcdir)/src/libcw $(AM_CPPFLAGS)
+bin_PROGRAMS               += src/caw/caw
 
 # ${exec_prefix} is the install prefix given to 'configure' by the user.
 # ${srcdir} is the directory of this Makefile and is set by autoconf.

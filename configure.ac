@@ -3,9 +3,9 @@
 # this configure.ac or any of the Makefile.am files.
 #
 
-AC_COPYRIGHT([Copyright (C) 2019-2022 Kevin Larke])
-AC_INIT([proj],[1.0],[proj@larke.org])
-AC_CONFIG_SRCDIR([src/proj/main.cpp])
+AC_COPYRIGHT([Copyright (C) 2019-2024 Kevin Larke])
+AC_INIT([caw],[1.0],[caw@larke.org])
+AC_CONFIG_SRCDIR([src/caw/main.cpp])
 AC_CONFIG_AUX_DIR([build-aux])                    # put aux files in build-aux
 AM_INIT_AUTOMAKE([1.9 -Wall foreign subdir-objects]) # subdir-objects needed for non-recursive make
 AC_CONFIG_HEADERS([config.h])
