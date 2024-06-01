@@ -4,6 +4,10 @@
 ### Example 01 - Write a sine signal to an audio file.
 
 
+__caw__ programs are described using a slightly extended form of JSON. 
+In this example the program is contained in the dictionary labeled `sine_file_01` and
+the preceeding fields (e.g. `base_dir`,`proc_dict`,`subnet_dict`, etc.) contain
+system parameters that the program needs to compile and run the program.
 
 ```
 {
@@ -13,7 +17,7 @@
     
   programs: {
 
-    example_01: {
+    sine_file_01: {
 
       durLimitSecs:5.0,
 
@@ -30,22 +34,17 @@
 
 ```
 
-__caw__ programs are described using a slightly extended form of JSON. 
-In this example the program is contained in the dictionary labeled `example_01` and
-the preceeding fields (e.g. `base_dir`,`proc_dict`,`subnet_dict`, etc.) contain
-system parameters that the program needs to compile and run the program.
-
-When run this program will write a five second sine signal to an audio file
-named `~/src/caw/examples/example_01/out.wav`.  The output file name
+When executed this program will write a five second sine signal to an audio file
+named `~/src/caw/examples/sine_file_01/out.wav`.  The output file name
 is formed by joining the value of the system parameter `base_dir` with 
-the name of the program `example_01`.
+the name of the program `sine_file_01`.
 
 Run the program like this:
 ```
-caw example.cfg example_01
+caw example.cfg sine_file_01
 ```
 
-__caw__ specify and run a network of virtual processors.  The network is
+__caw__ programs specify and run a network of virtual processors.  The network is
 described in the `procs` dictionary. 
 
 The line beginning with `osc: {` defines an instance of a `sine_tone` processor
@@ -104,7 +103,7 @@ audio_file_out: {
 
 Based on the `sine_tone` class all the default values for the signal generator
 are apparent.  With this information it is clear that the audio file
-written by `example_01` contains a stereo (`chCnt`=2), 440 Hertz signal
+written by `sine_file_01` contains a stereo (`chCnt`=2), 440 Hertz signal
 with an amplitude of 0.8.
 
 Note that unless stated otherwise all variables can be either input or output ports for their
@@ -122,18 +121,18 @@ Link to proc class desc reference.
 
 ### Example 02: Modulated Sine Signal
 
-This example is an extended version of `example_01` where a low frequency oscillator
+This example is an extended version of `sine_file_01` where a low frequency oscillator
 is formed using a second `sine_tone` processor and a sample and hold unit. The output
-of the sample and hold unit is then used to module the frequency of an audio
+of the sample and hold unit is then used to modulate the frequency of an audio
 frequency `sine_tone` oscillator.
 
-Note that the LFO output by specifies a 3 Hertz sine signal
-with a gain of 110 (220 peak to peak amplitude) and an offset
-of 110.  The signal is therefore sweeping an amplitude
+Note that the LFO output is a 3 Hertz sine signal
+with a gain of 110 (220 peak-to-peak amplitude) and an offset
+of 440.  The signal is therefore sweeping an amplitude
 between 330 and 550 which will be treated as frequency values by `osc`.
 
 ```
-example_02: {
+mod_sine_02: {
 
   durLimitSecs:5.0,
 
@@ -174,22 +173,22 @@ The `sample_hold` class works by maintaining a buffer of the previous `ftime` mi
 samples it has received. The output is both the value of the first sample in the buffer (`sh.out`)
 or the mean of all the values in the buffer (`sh.mean`).
 
-
+TODO: change the name of the 'ftime' sample and hold variable.
 
 ### Example 03: Presets
 
 One of the fundamental features of __caw__ is the ability to build
-presets which can set the network or a given processor to a particular state.
+presets which can set the network, or a given processor, to a particular state.
 
-`example_02` showed the use of a class preset on the audio oscillator.
-`example_03` shows how presets can be specified and applied for the entire network.
+`mod_sine_02` showed the use of a class preset on the audio oscillator.
+`presets_03` shows how presets can be specified and applied for the entire network.
 
 In this example four network presets are specified in the  `presets` statement 
 and the "a" preset is automatically applied once the network is created
 but before it starts to execute.
 
 ```
-example_03: {
+presets_03: {
 
   durLimitSecs:5.0,
   preset: "a",
@@ -225,9 +224,9 @@ then be duplicated for each channel if each channel is to be controlled
 independently.
 
 One of the simplest ways to address the individual channels of a
-processor is by providing a list of value in a preset specification.
+processor is by providing a list of values in a preset specification.
 Several examples of this are shown in the presets contained in network
-`presets` dictionary in `example_03`.  For example the preset
+`presets` dictionary in `presets_03`.  For example the preset
 `a.lfo.dc` specifies that the DC offset of first channel of the LFO
 should be 880 and the second channel should be 770.
 
@@ -236,7 +235,7 @@ list of values. If only a single value is given (e.g. `b.lfo.dc`) then
 the same value is applied to all channels.
 
 Note that if a processor specifies a class preset with a `preset`
-statement, as in the `osc` processor in `example_02`, or sets
+statement, as in the `osc` processor in `mod_sine_02`, or sets
 initial values with an `args` statement, these
 values will be applied to the processor when it is instantiated, but
 may be overwritten when the network preset is applied.  For example,
@@ -259,3 +258,129 @@ Notice that the interpolation algorithm attempts to match channels between the p
 however if one of the channels does not exist then it uses channel 0.
 
 TODO: Check that this accurately describes preset interpolation.
+
+### Example 04 : Programming
+
+```
+program_04: {
+    
+  durLimitSecs: 10.0,
+	
+  network {
+    procs: {
+	  tmr:   { class: timer,                               args:{ period_ms:1000.0 }},
+	  cnt:   { class: counter,  in: { trigger:tmr.out },   args:{ min:0, max:3, inc:1, init:0, mode:modulo } },
+	  print: { class: print,    in: { in:cnt.out, eol_fl:cnt.out }, args:{ text:["my","count"] }}
+	}
+  }
+}
+```
+
+This program demonstrates how __caw__ passes messages between processors.
+In this case a timer is generates a pulse every 1000 milliseconds
+which in turn increments a modulo 3 counter the value of which is
+printed to the console.
+
+This program should output:
+
+```
+: my : 0.000000 : count
+info: : Entering runtime.   
+: my : 1.000000 : count
+: my : 2.000000 : count
+: my : 0.000000 : count
+: my : 1.000000 : count
+: my : 2.000000 : count
+: my : 0.000000 : count
+: my : 1.000000 : count
+: my : 2.000000 : count
+: my : 0.000000 : count
+: my : 1.000000 : count
+```
+
+Notice that the __print__ processor has an _eol_fl_ variable. When this
+variable receives any input it prints the last value in the _text_ list
+and then a new line.
+
+
+### Example 05:  Processors with __mult__ inputs
+
+`mult_inputs_05` extends `program_04` by including a __number__ and __add__ processor.
+The __number__ processor acts like a register than can hold a single value.
+As used here the __number__ processor simply holds the constant value '3'.
+The __add__ processor sums the output of _cnt_ and _numb_.
+
+```
+mult_inputs_05: {
+    
+  durLimitSecs: 10.0,
+	
+  network {
+    procs: {
+	  tmr:   { class: timer,                               args:{ period_ms:1000.0 }},
+	  cnt:   { class: counter,  in: { trigger:tmr.out },   args:{ min:0, max:3, inc:1, init:0, mode:modulo } },
+      numb:  { class: number,                              args:{ value:3 }},
+      sum:   { class: add,      in: { in0:cnt.out, in1:numb.value } },
+	  print: { class: print,    in: { in0:cnt.out, in1:sum.out, eol_fl:cnt.out }, args:{ text:["cnt","add","count"] }}
+	}
+  }
+}
+```
+
+The notable new concept introduced by this program is the concept of
+__mult__ variables.  These are variables which can be instantiated
+multiple times by referencing them in the `in:{}` statement and
+including an integer suffix.  The _in_ variable of both __add__ and
+__print__ have this attribute specified in their class descriptions.
+In this program both of these processors have two `in` variables:
+`in0` and `in1`.  In practice they may have as many inputs as the
+network designer requires.
+
+
+### Example 06: Connecting __mult__ inputs
+
+```
+mult_conn_06: {
+
+  durLimitSecs: 5.0,
+
+  network: {
+    procs: {
+      osc:    { class: sine_tone, args: { chCnt:6, hz:[110,220,440,880,1760, 3520] }},
+      split:  { class: audio_split, in:{ in:osc.out }, args: { select:[ 0,0, 1,1, 2,2 ] } },
+      
+      // Create merge.in0,in1,in2 by iterating across all outputs of 'split'.
+      merge_a: { class: audio_merge, in:{ in_:split.out_ } },
+      af_a:    { class: audio_file_out, in:{ in:merge_a.out },  args:{ fname:"$/out_a.wav" }}
+      
+      // Create merge.in0,in1 and connect them to split.out0 and split.out1
+      merge_b:  { class: audio_merge, in:{ in_:split.out0_2 } },
+      af_b:     { class: audio_file_out, in:{ in:merge_b.out },  args:{ fname:"$/out_b.wav" }}
+      
+      // Create merge.in0,in1 and connect them both to split.out1
+      merge_c:  { class: audio_merge, in:{ in0_2:split.out1 } },
+      af_c:     { class: audio_file_out, in:{ in:merge_c.out },  args:{ fname:"$/out_c.wav" }}
+      
+      
+    }
+  } 
+}
+```
+
+
+TODO: 
+- poly_merge and audio_merge are identical except for the default input gain.
+Change the default input gain to default to 1 and then manually set the initial
+input gain to 0 when poly_merge is used to cross fade.
+
+- If a proc inst label has an integer suffix it should be taken as the label-sfx-id
+this would allow for using 'mult' connections to multiple source procs without using a poly.
+
+```
+g0 : { class: audio_gain, in:{ in:osc.out0 }, args: { gain:0.5}},      
+g1 : { class: audio_gain, in:{ in:osc.out1 }, args: { gain:0.25}},      
+g2 : { class: audio_gain, in:{ in:osc.out2 }, args: { gain:0.125}},      
+merge:  { class: audio_merge, in:{ in_:g_.out } },
+
+```
+Note that this will have problems if done inside a poly.
