@@ -163,18 +163,17 @@ Here is the `sample_hold` class description:
 sample_hold: {
   vars: {
     in:        { type:audio,   flags:["src"],  doc:"Audio input source." },
-    period_ms: { type:ftime,   value:50,       doc:"Sample period in milliseconds." },
+    period_ms: { type:ftime,   value:50.0,       doc:"Sample period in milliseconds." },
     out:       { type:sample,  value:0.0,      doc:"First value in the sample period." },
     mean:      { type:sample,  value:0.0,      doc:"Mean value of samples in period." },
   }
 }
 ```
 
-The `sample_hold` class works by maintaining a buffer of the previous `ftime` millisecond
+The `sample_hold` class works by maintaining a buffer of the previous `period_ms` millisecond
 samples it has received. The output is both the value of the first sample in the buffer (`sh.out`)
 or the mean of all the values in the buffer (`sh.mean`).
 
-TODO: change the name of the 'ftime' sample and hold variable.
 
 ### Example 03: Presets
 
@@ -268,7 +267,7 @@ on either preset then it uses the value from channel 0.
 
 TODO: Check that this accurately describes preset interpolation.
 
-### Example 04 : Programming
+### Example 04 : Event Programming
 
 ```
 program_04: {
@@ -334,7 +333,7 @@ mult_inputs_05: {
 	  cnt:   { class: counter,  in: { trigger:tmr.out },   args:{ min:0, max:3, inc:1, init:0, mode:modulo } },
       numb:  { class: number,                              args:{ value:3 }},
       sum:   { class: add,      in: { in0:cnt.out, in1:numb.value } },
-	  print: { class: print,    in: { in0:cnt.out, in1:sum.out, eol_fl:cnt.out }, args:{ text:["cnt","add","count"] }}
+	  print: { class: print,    in: { in0:cnt.out, in1:sum.out, eol_fl:sum.out }, args:{ text:["cnt","add","count"] }}
 	}
   }
 }
@@ -498,11 +497,16 @@ Note also that the _begin_,_count_ notation that allows specific
 variables to be selected can also be used here to select specific
 ranges of processors.
 
-__Beware__ however that when a processor is created with a
-specified suffix id it will by default attempt to connect to source
-processor with the same suffix id. This accounts for the fact that
-the __audio_gain__  `in:{...}` statements must explicitely set the suffix id of
-_split_ to 0.  (e.g. `in:split0.out0` ). 
+__Beware__ however that when a processor is created with a specified
+suffix id it will by default attempt to connect to a source processor
+with the same suffix id. This accounts for the fact that the
+__audio_gain__ `in:{...}` statements must explicitely set the suffix
+id of _split_ to 0.  (e.g. `in:split0.out0` ).  Without the explicit
+processor label suffix id (e.g. `in:split.out0`) in `g1: {...}` and
+`g2: {...}` the interpretter would attempt to connect to the
+non-existent procesor `split1` and `split2` - which would trigger a
+compilation error.
+
 
 TODO:
 - Using suffix id's this way will have cause problems if done inside a poly. Investigate.
@@ -516,7 +520,12 @@ used simultaneously on both the processor and the variable?
 
 ### Some Invariants
 
+#### Network Invariants
 - A given variable instance may only be connected to a single source.
 - Once a processor is instantiated the count and data types of the variables is fixed.
-- Once a processor is instantiated no new connections can be created or removed.
+- Once a processor is instantiated no new connections can be created or removed. (except for feedback connections?)
 - If a variable has a source connection then it cannot be assigned a value.
+- Processors always execute in order from top to bottom.
+
+#### Internal Proc Invariants
+- The _value() function will be called once for every new value received by a variable.
