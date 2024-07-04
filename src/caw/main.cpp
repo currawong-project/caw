@@ -10,19 +10,39 @@
 
 #include "cwIoFlowCtl.h"
 
+#include "cwMidi.h"
+#include "cwMidiFile.h"
 
+#include "cwTest.h"
 
 using namespace cw;
+
+enum {
+  kExecSelId,
+  kTestSelId,
+  kHwReportSelId,
+  kTestStubSelId,
+  kHelpSelId
+};
+
+idLabelPair_t appSelA[] = {
+  { kExecSelId,     "exec" },
+  { kTestSelId,     "test" },
+  { kHwReportSelId, "hw_report" },
+  { kTestStubSelId, "test_stub" },
+  { kHelpSelId,     "help" },
+  { kInvalidId, nullptr }
+};
 
 rc_t test( const object_t* cfg, int argc, char* argv[] );
 
 typedef struct app_str
 {
-  object_t*             cfg;                // complete cfg.
-  
   object_t*             flow_cfg;           // flow program cfg
   object_t*             io_cfg;             //  IO lib cfg.
-  const char*           cmd_line_pgm_label; // 
+  const char*           cmd_line_pgm_label; //
+
+  unsigned appSelId;
   
   io::handle_t          ioH;
   io_flow_ctl::handle_t ioFlowH;
@@ -57,6 +77,23 @@ void print( void* arg, const char* text )
 {
   printf("%s\n",text);
 }
+
+rc_t _run_test_suite(int argc, const char** argv)
+{
+  rc_t rc = kOkRC;
+
+  if( argc < 1 )
+  {
+    rc = cwLogError(kInvalidArgRC,"The command line is invalid for running the test suite.");
+    goto errLabel;
+  }
+  
+  rc = test::test(argv[0],argc,argv);
+
+errLabel:
+  return rc;
+}
+
 
 rc_t _load_init_pgm( app_t& app, const char* pgm_label, bool& exec_complete_fl_ref )
 {
@@ -207,7 +244,7 @@ rc_t _io_callback( void* arg, const io::msg_t* m )
       break;
       
     case io::kAudioTId:
-      if( app->ioFlowH.isValid() && m != nullptr )
+      if( is_executable(app->ioFlowH) && m != nullptr )
         io_flow_ctl::exec(app->ioFlowH,*m);
       break;
       
@@ -234,45 +271,57 @@ rc_t _io_callback( void* arg, const io::msg_t* m )
   return kOkRC;
 }
 
+void _print_command_line_help()
+{
+  const char* usage =
+    "Usage:\n"
+    "       caw exec      <program_cfg_fname> <program_label>\n"
+    "       caw hw_report <program_cfg_fname> <program_label>\n"
+    "       caw test <test_cfg_fname> (<module_label> | all) (<test_label> | all) (compare | echo | gen_report )* {args ...}"
+    "       caw test_stub ...\n";
+    
+  cwLogPrint(usage);
+  
+}
+
 rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
 {
   rc_t rc = kOkRC;
-
-  if( argc < 2 )
+  const char* io_cfg_fn = nullptr;
+  
+  if( argc < 1 )
   {
-    cwLogPrint("Usage: caw <cfg_fname> <pgm_label>");
     rc = kInvalidArgRC;
+    _print_command_line_help();
     goto errLabel;
   }
-  else
+
+  if((app.appSelId = labelToId( appSelA, argv[1], kInvalidId )) == kInvalidId )
   {
-    const char* io_cfg_fn = nullptr;
-    const char* flow_cfg_fn = nullptr;
+    rc = cwLogError(kInvalidArgRC,"The command line action '%s' is not valid.",argv[1]);
+    _print_command_line_help();
+  }
 
-    // check for pgm label
-    if( argc > 2 )
+  if( app.appSelId == kExecSelId || app.appSelId == kHwReportSelId )
+  {
+    if( argc <= 3 )
     {
-      if( textLength(argv[2]) == 0 )
-      {
-        rc = cwLogError(kSyntaxErrorRC,"The command line program label is blank or invalid valid.");
-        goto errLabel;
-      }
-
-      app.cmd_line_pgm_label = argv[2];
+      rc = cwLogError(kInvalidArgRC,"The command line is missing required arguments.");
+      _print_command_line_help();      
     }
     
+    app.cmd_line_pgm_label = argv[3];
+      
     // parse the cfg. file
-    if((rc = objectFromFile(argv[1],app.cfg)) != kOkRC )
+    if((rc = objectFromFile(argv[2],app.flow_cfg)) != kOkRC )
     {
       rc = cwLogError(rc,"Parsing failed on the cfg. file '%s'.",argv[1]);
       goto errLabel;
     }
 
-    // read the cfg file
-    if((rc = app.cfg->readv("flow", kReqFl, flow_cfg_fn,
-                            "io",   kReqFl, io_cfg_fn)) != kOkRC )
+    // read the io cfg filename
+    if((rc = app.flow_cfg->getv("io_dict", io_cfg_fn)) != kOkRC )
     {
-      rc = cwLogError(rc,"Parsing failed on '%s'.",argv[1]);
       goto errLabel;
     }
 
@@ -283,12 +332,6 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
       goto errLabel;
     }
 
-    // parse the flow cfg file
-    if((rc = objectFromFile(flow_cfg_fn,app.flow_cfg)) != kOkRC )
-    {
-      rc = cwLogError(rc,"Parsing failed on '%s'.",cwStringNullGuard(flow_cfg_fn));
-      goto errLabel;
-    }
   }
 
 errLabel:
@@ -314,7 +357,8 @@ rc_t _io_main( app_t& app )
     // for up to io_cfg->ui.websockTimeOutMs milliseconds
     io::exec(app.ioH,50);
 
-
+    if( is_exec_complete(app.ioFlowH) )
+      break;
   }
 
   // stop the io framework
@@ -329,6 +373,24 @@ errLabel:
 }
 
 
+void _test_stub( app_t& app )
+{
+  rc_t rc = kOkRC;
+  midi::file::handle_t mfH;
+
+  cwLogInfo("Test stub");
+  
+  if(( rc = midi::file::open_csv(mfH,"/home/kevin/temp/temp_midi.csv")) != kOkRC )
+  {
+    goto errLabel;
+  }
+
+errLabel:
+  close(mfH);
+
+  
+}
+
 int main( int argc, char* argv[] )
 {
   rc_t  rc  = kOkRC;
@@ -342,14 +404,26 @@ int main( int argc, char* argv[] )
   if((rc= _parse_main_cfg(app, argc, argv )) != kOkRC )
     goto errLabel;
 
+  switch( app.appSelId )
+  {
+    case kTestSelId:
+      _run_test_suite(argc-2, (const char**)(argv + 2));
+      goto errLabel;
+      
+    case kHelpSelId:
+      _print_command_line_help();
+      goto errLabel;
+
+    default:
+      break;
+  }
+  
   // instantiate the IO framework
   if((rc = create( app.ioH, app.io_cfg, _io_callback, &app, appIdMapA, appIdMapN, nullptr )) != kOkRC )
   {
     rc = cwLogError(rc,"IO Framework instantiation failed.");
     goto errLabel;
   }
-
-  report(app.ioH);
 
   // instantiate the IO flow controller
   if((rc = create( app.ioFlowH, app.ioH, app.flow_cfg)) != kOkRC )
@@ -358,6 +432,20 @@ int main( int argc, char* argv[] )
     goto errLabel;
   }
 
+  switch( app.appSelId )
+  {
+    case kHwReportSelId:
+      hardwareReport(app.ioH);
+      goto errLabel;
+      break;
+
+    case kTestStubSelId:
+      _test_stub(app);
+      goto errLabel;
+      break;
+
+  }
+  
   if( app.cmd_line_pgm_label != nullptr )
     if((rc = _load_init_pgm(app, app.cmd_line_pgm_label, exec_complete_fl )) != kOkRC )
       goto errLabel;
@@ -380,8 +468,6 @@ errLabel:
   if( app.flow_cfg != nullptr )
     app.flow_cfg->free();
 
-  if( app.cfg != nullptr )
-    app.cfg->free();
 
   cw::log::destroyGlobal();
   
