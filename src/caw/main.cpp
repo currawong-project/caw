@@ -10,8 +10,6 @@
 
 #include "cwIoFlowCtl.h"
 
-#include "cwMidi.h"
-#include "cwMidiFile.h"
 
 #include "cwTest.h"
 
@@ -373,21 +371,15 @@ errLabel:
 }
 
 
+#include "cwMidi.h"
+#include "cwMidiFile.h"
+#include "cwDspTypes.h"
+#include "cwWaveTableBank.h"
+
 void _test_stub( app_t& app )
 {
-  rc_t rc = kOkRC;
-  midi::file::handle_t mfH;
 
-  cwLogInfo("Test stub");
-  
-  if(( rc = midi::file::open_csv(mfH,"/home/kevin/temp/temp_midi.csv")) != kOkRC )
-  {
-    goto errLabel;
-  }
-
-errLabel:
-  close(mfH);
-
+  wt_bank::test("/home/kevin/temp/wt/bank");
   
 }
 
@@ -414,6 +406,11 @@ int main( int argc, char* argv[] )
       _print_command_line_help();
       goto errLabel;
 
+    case kTestStubSelId:
+      _test_stub(app);
+      goto errLabel;
+      break;
+      
     default:
       break;
   }
@@ -436,11 +433,6 @@ int main( int argc, char* argv[] )
   {
     case kHwReportSelId:
       hardwareReport(app.ioH);
-      goto errLabel;
-      break;
-
-    case kTestStubSelId:
-      _test_stub(app);
       goto errLabel;
       break;
 
