@@ -371,16 +371,14 @@ errLabel:
 }
 
 
-#include "cwMidi.h"
-#include "cwMidiFile.h"
-#include "cwDspTypes.h"
-#include "cwWaveTableBank.h"
+//#include "cwMidi.h"
+//#include "cwMidiFile.h"
+//#include "cwDspTypes.h"
+//#include "cwWaveTableBank.h"
 
 void _test_stub( app_t& app )
 {
 
-  wt_bank::test("/home/kevin/temp/wt/bank");
-  
 }
 
 int main( int argc, char* argv[] )
