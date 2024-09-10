@@ -30,6 +30,8 @@ system parameters that the program needs to compile and run the program.
 }
 ```
 
+![blah](svg/00_osc_af.svg)
+
 When executed this program will write a five second sine signal to an audio file
 named `~/src/caw/examples/sine_file_01/out.wav`.  The output file name
 is formed by joining the value of the system parameter `base_dir` with 
@@ -159,7 +161,7 @@ Here is the `sample_hold` class description:
 sample_hold: {
   vars: {
     in:        { type:audio,   flags:["src"],  doc:"Audio input source." },
-    period_ms: { type:ftime,   value:50.0,       doc:"Sample period in milliseconds." },
+    period_ms: { type:ftime,   value:50.0,     doc:"Sample period in milliseconds." },
     out:       { type:sample,  value:0.0,      doc:"First value in the sample period." },
     mean:      { type:sample,  value:0.0,      doc:"Mean value of samples in period." },
   }
