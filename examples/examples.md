@@ -1,17 +1,3 @@
-
-:::mermaid
-  graph LR
-    A[Christmas] -->|Get money| B(Go shopping)
-    B --> C{Let me think}
-    subgraph work
-      C -->|One| D[Laptop]
-      C --x|Two| E[iPhone]
-      C -.->|Three| F[fa:fa-car Car]
-      C ==> G((Bike))
-      C --> J>TV]
-    end
-:::
-
 ### Example 01 - Write a sine signal to an audio file.
 
 
@@ -20,7 +6,7 @@ In this example the program is contained in the dictionary labeled `sine_file_01
 the preceeding fields (e.g. `base_dir`,`proc_dict`,`subnet_dict`, etc.) contain
 system parameters that the program needs to compile and run the program.
 
-```YAML
+``` yaml
 {
   base_dir:    "~/src/caw/examples",
   proc_dict:   "~/src/caw/examples/proc_dict.cfg",
@@ -42,10 +28,6 @@ system parameters that the program needs to compile and run the program.
     }
   }
 }
-
-
-
-
 ```
 
 When executed this program will write a five second sine signal to an audio file
@@ -146,7 +128,7 @@ with a gain of 110 (220 peak-to-peak amplitude) and an offset
 of 440.  The LFO output signal is therefore sweeping an amplitude
 between 330 and 550 which will be treated as frequency values by `osc`.
 
-```
+``` json
 mod_sine_02: {
 
   durLimitSecs:5.0,
@@ -202,7 +184,7 @@ In this example four network presets are specified in the  `presets` statement
 and the "a" preset is automatically applied once the network is created
 but before it starts to execute.
 
-```
+``` JSON
 presets_03: {
 
   durLimitSecs:5.0,
