@@ -1,5 +1,16 @@
 
-
+:::mermaid
+  graph LR
+    A[Christmas] -->|Get money| B(Go shopping)
+    B --> C{Let me think}
+    subgraph work
+      C -->|One| D[Laptop]
+      C --x|Two| E[iPhone]
+      C -.->|Three| F[fa:fa-car Car]
+      C ==> G((Bike))
+      C --> J>TV]
+    end
+:::
 
 ### Example 01 - Write a sine signal to an audio file.
 
@@ -9,7 +20,7 @@ In this example the program is contained in the dictionary labeled `sine_file_01
 the preceeding fields (e.g. `base_dir`,`proc_dict`,`subnet_dict`, etc.) contain
 system parameters that the program needs to compile and run the program.
 
-```
+```YAML
 {
   base_dir:    "~/src/caw/examples",
   proc_dict:   "~/src/caw/examples/proc_dict.cfg",
@@ -31,6 +42,9 @@ system parameters that the program needs to compile and run the program.
     }
   }
 }
+
+
+
 
 ```
 
@@ -72,7 +86,7 @@ processor class file named by the `proc_dict` system parameter field.
 
 Here are the class specifications for `sine_tone` and `audio_file_out`.
 
-```
+```yaml
 sine_tone: {
   vars: {
       srate:     { type:srate, value:0,         doc:"Sine tone sample rate. 0=Use default system sample rate"}
