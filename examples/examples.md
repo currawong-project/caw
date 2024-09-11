@@ -33,7 +33,7 @@ system parameters that the program needs to compile and run the program.
 }
 ```
 
-![Example 0](svg/00_osc_af.svg, "`sine_file_01` processing network")
+![Example 0](svg/00_osc_af.svg "`sine_file_01` processing network")
 
 When executed this program will write a five second sine signal to an audio file
 named `~/src/caw/examples/sine_file_01/out.wav`.  The output file name
@@ -194,7 +194,7 @@ mod_sine_02: {
 }
 ```
 
-![Example 2](svg/02_mod_sine.svg, "`mod_sine_02` processing network")
+![Example 2](svg/02_mod_sine.svg "`mod_sine_02` processing network")
 
 The `osc` instance in this example uses a `preset` statement. This will have
 the effect of applying the class preset `mono` to the `osc` when it is 
@@ -333,7 +333,7 @@ program_04: {
 }
 ```
 
-![Example 4](svg/04_program.svg, "`program_04` processing network")
+![Example 4](svg/04_program.svg "`program_04` processing network")
 
 
 This program demonstrates how __caw__ passes messages between processors.
@@ -391,7 +391,7 @@ mult_inputs_05: {
 }
 ```
 
-![Example 5](svg/05_mult_inputs.svg, "`mult_inputs_05` processing network")
+![Example 5](svg/05_mult_inputs.svg "`mult_inputs_05` processing network")
 
 The notable new concept introduced by this program is the concept of
 __mult__ variables.  These are variables which can be instantiated
@@ -443,7 +443,7 @@ mult_conn_06: {
 }
 ```
 
-![Example 6](svg/06_mult_conn.svg, "`mult_conn_06` processing network")
+![Example 6](svg/06_mult_conn.svg "`mult_conn_06` processing network")
 
 The audio source for this network is a six channel signal generator,
 where the frequency is each channel is incremented by an octave.
@@ -549,7 +549,7 @@ proc_suffix_07: {
 
 ```
 
-![Example 7](svg/07_proc_suffix.svg, "`proc_suffix_06` processing network")
+![Example 7](svg/07_proc_suffix.svg "`proc_suffix_06` processing network")
 
 In this example three __audio_gain__ processors are instantiated with
 the same label 'g' and are then differentiated by their suffix id's:
