@@ -275,7 +275,7 @@ void _print_command_line_help()
     "Usage:\n"
     "       caw exec      <program_cfg_fname> <program_label>\n"
     "       caw hw_report <program_cfg_fname> <program_label>\n"
-    "       caw test <test_cfg_fname> (<module_label> | all) (<test_label> | all) (compare | echo | gen_report )* {args ...}"
+    "       caw test <test_cfg_fname> (<module_label> | all) (<test_label> | all) (compare | echo | gen_report )* {args ...}\n"
     "       caw test_stub ...\n";
     
   cwLogPrint(usage);
