@@ -16,12 +16,15 @@ system parameters that the program needs to compile and run the program.
 
     sine_file_01: {
 
-      durLimitSecs:5.0,
+      dur_limit_secs:5.0,  // Run the network for 5 seconds
 
       network: {
 
         procs: {
+	  // Create a 'sine_tone' oscillator.
           osc: { class: sine_tone },
+	  
+	  // Create an audio output file and fill it with the output of the oscillator.
           af:  { class: audio_file_out, in: { in:osc.out } args:{  fname:"$/out.wav"} }
         } 
       }      
@@ -30,7 +33,7 @@ system parameters that the program needs to compile and run the program.
 }
 ```
 
-![blah](svg/00_osc_af.svg)
+![Example 0](svg/00_osc_af.svg, "`sine_file_01` processing network")
 
 When executed this program will write a five second sine signal to an audio file
 named `~/src/caw/examples/sine_file_01/out.wav`.  The output file name
@@ -74,7 +77,7 @@ Here are the class specifications for `sine_tone` and `audio_file_out`.
 sine_tone: {
   vars: {
       srate:     { type:srate, value:0,         doc:"Sine tone sample rate. 0=Use default system sample rate"}
-      chCnt:     { type:uint,  value:2,         doc:"Output signal channel count."},
+      ch_cnt:    { type:uint,  value:2,         doc:"Output signal channel count."},
       hz:        { type:coeff, value:440.0,     doc:"Frequency in Hertz."},
       phase:     { type:coeff, value:0.0,       doc:"Offset phase in radians."},
       dc:        { type:coeff, value:0.0,       doc:"DC offset applied after gain."},
@@ -86,7 +89,7 @@ sine_tone: {
       a220 : { hz:220 },
       a440 : { hz:440 },
       a880 : { hz:880 },
-      mono:  { chCnt:1, gain:0.75 }
+      mono:  { ch_cnt:1, gain:0.75 }
   }
 }
 
@@ -99,24 +102,68 @@ audio_file_out: {
 }
 ```
 
-Based on the `sine_tone` class all the default values for the signal generator
-are apparent.  With this information it is clear that the audio file
-written by `sine_file_01` contains a stereo (`chCnt`=2), 440 Hertz signal
-with an amplitude of 0.8.
+The class definitions specify the names, types and default values for
+each variable.  Since the `sine_tone` instance in `sine_file_00`
+doesn't override any of the the variable default values the generated
+audio file must be a stereo (`ch_cnt`=2), 440 Hertz signal with an
+amplitude of 0.8.
 
-Note that unless stated otherwise all variables can be either input or output ports for their
-proc. The `no_src` attribute on `sine_tone.out` indicates that it is an output-only
-variable. The `src` attribute on `audio_file_out.in` indicates that it must be connected to
-a source variable or the processor cannot be instantiated - and therefore the network it is contained
-by cannot be instantiated.  Note that this isn't to say that it can't be an output variable - only
+Note that unless stated otherwise all variables can be either input or
+output ports for their processor. The `no_src` attribute on
+`sine_tone.out` indicates that it is an output-only variable. The
+`src` attribute on `audio_file_out.in` indicates that it must be
+connected to a source variable or the processor cannot be instantiated
+- and therefore the network it is contained by cannot be instantiated.
+Note that this isn't to say that it can't be an output variable - only
 that it must be connected.
 
-TODO: 
-1. more about types - especially the non-obvious 'srate','coeff'.
-Link to proc class desc reference.
-2. more about presets.
-3. variables may be a source for multiple inputs but only be connected to a single source.
-4. change `sine_tone.chCnt` to `ch_cnt`.
+
+Here is a complete list of possible variable attributes.
+Attribute | Description
+----------|-------------------------------------------------------
+src       | This variable must be connected to a source variable or the processor instantiation will fail.
+no_src    | This variable cannot be connected to a source variable (it is write-only, or output only).
+init      | This variable is only read at processer instantiation time, changes during runtime will be ignored.
+mult      | This variable may be instantiated multiple times. See `mult_input_05` below.
+out       | This is a subnet output variable. 
+
+__caw__ uses types and does it's best at converting between types where the conversion will
+not lose information.
+
+Here are the list of built-in types:
+
+Type     | Description
+---------|-----------------------------------
+bool     | true | false
+uint     | C unsigned
+int      | C int
+float    | C float
+double   | C double
+string   | Array of bytes.
+time     | POSIX timespec
+cfg      | cw object (JSON object)
+audio    | multi-channel audio array
+spectrum | multi-channel spectrum in comlex or rect. coordinates.
+midi     | MIDI message array.
+runtime  | 'no_src' variable whose type is determined by the types of the other variables. See the 'list' processor.
+numeric  | bool | uint | int | float | double
+all      | This variable can be any type. Commonly used for variables which act as triggers. See the 'counter' processor.
+
+A few type aliases are defined to help document the intended purpose of a given variable.
+
+Type aliases:
+Alias    | Type   | Description
+---------|--------|----------------------------
+srate    | float  | This is an audio sample rate value.
+sample   | float  | This value is calculated from audio sample values (e.g. RMS )
+coeff    | float  | This value will operate (e.g. add, multiply) on an audio signal.
+ftime    | double | Fractional time in seconds or milliseconds.
+
+Also notice that the processor class has named presets. During
+processor instantiaion these presets can be used to set the
+initial state of the processor.  See `mod_sine_02` below for
+an example of a class preset used this way.
+
 
 ### Example 02: Modulated Sine Signal
 
@@ -133,7 +180,7 @@ between 330 and 550 which will be treated as frequency values by `osc`.
 ``` json
 mod_sine_02: {
 
-  durLimitSecs:5.0,
+  dur_limit_secs:5.0,
 
   network: {
 
@@ -147,9 +194,11 @@ mod_sine_02: {
 }
 ```
 
+![Example 2](svg/02_mod_sine.svg, "`mod_sine_02` processing network")
+
 The `osc` instance in this example uses a `preset` statement. This will have
 the effect of applying the class preset `mono` to the `osc` when it is 
-instantiated. Based on the `sine_tone` class description the `osc` will therefore
+instantiated. Based on the `sine_tone` class description the `osc` will then
 have a single audio channel with an amplitude of 0.75.
 
 In this example the sample and hold unit  is necessary to convert the audio signal to a scalar
@@ -169,9 +218,8 @@ sample_hold: {
 ```
 
 The `sample_hold` class works by maintaining a buffer of the previous `period_ms` millisecond
-samples it has received. The output is both the value of the first sample in the buffer (`sh.out`)
-or the mean of all the values in the buffer (`sh.mean`).
-
+samples. It then outputs two values based on this buffer. `out` is simply the first
+value from the buffer, and 'mean' is the average of all the values in the buffer.
 
 ### Example 03: Presets
 
@@ -186,10 +234,13 @@ In this example four network presets are specified in the  `presets` statement
 and the "a" preset is automatically applied once the network is created
 but before it starts to execute.
 
+If this example was run in real-time it would also be possible to apply
+the the presets while the network was running.
+
 ``` JSON
 presets_03: {
 
-  durLimitSecs:5.0,
+  dur_limit_secs:5.0,
   preset: "a",
 
   network: {
@@ -215,7 +266,7 @@ presets_03: {
 This example also shows how to apply `args` or `preset` values per channel.
 
 Audio signals in __caw__ can contain an arbitrary number of signals.
-As shown by the `sine_tone` class the count of output channels (`sine_tone.chCnt`) 
+As shown by the `sine_tone` class the count of output channels (`sine_tone.ch_cnt`) 
 is up to the network designer.  Processors that receive  and process incoming 
 audio will often expand the count of internal audio processors to match
 the count of channels they must handle.  The processor variables are
@@ -270,7 +321,7 @@ TODO: Check that this accurately describes preset interpolation.
 ```
 program_04: {
     
-  durLimitSecs: 10.0,
+  dur_limit_secs: 10.0,
 	
   network {
     procs: {
@@ -281,6 +332,9 @@ program_04: {
   }
 }
 ```
+
+![Example 4](svg/04_program.svg, "`program_04` processing network")
+
 
 This program demonstrates how __caw__ passes messages between processors.
 In this case a timer generates a pulse every 1000 milliseconds
@@ -323,29 +377,37 @@ The __add__ processor then sums the output of _cnt_ and _numb_.
 ```
 mult_inputs_05: {
     
-  durLimitSecs: 10.0,
+  dur_limit_secs: 10.0,
 	
   network {
     procs: {
-	  tmr:   { class: timer,                               args:{ period_ms:1000.0 }},
-	  cnt:   { class: counter,  in: { trigger:tmr.out },   args:{ min:0, max:3, inc:1, init:0, mode:modulo } },
+      tmr:   { class: timer,                               args:{ period_ms:1000.0 }},
+      cnt:   { class: counter,  in: { trigger:tmr.out },   args:{ min:0, max:3, inc:1, init:0, mode:modulo } },
       numb:  { class: number,                              args:{ value:3 }},
       sum:   { class: add,      in: { in0:cnt.out, in1:numb.value } },
-	  print: { class: print,    in: { in0:cnt.out, in1:sum.out, eol_fl:sum.out }, args:{ text:["cnt","add","count"] }}
-	}
+      print: { class: print,    in: { in0:cnt.out, in1:sum.out, eol_fl:sum.out }, args:{ text:["cnt","add","count"] }}
+     }
   }
 }
 ```
+
+![Example 5](svg/05_mult_inputs.svg, "`mult_inputs_05` processing network")
 
 The notable new concept introduced by this program is the concept of
 __mult__ variables.  These are variables which can be instantiated
 multiple times by referencing them in the `in:{...}` statement and
 including an integer suffix.  The _in_ variable of both __add__ and
-__print__ have this attribute specified in their class descriptions.
+__print__ have the __mult__ attribute specified in their class descriptions.
 In this program both of these processors have two `in` variables:
 `in0` and `in1`.  In practice they may have as many inputs as the
 network designer requires.
 
+The ability to define processors with a programmable count of inputs or output
+of a given type is a key feature to any data flow programming scheme.
+For example consider an audio mixer.  The count of signals that it may
+need to combine can only be determined from the context in which it is used.
+Likewise, as in this example, a summing processor should be able to
+form a sum of any number of inputs.
 
 ### Example 06: Connecting __mult__ inputs
 
@@ -356,11 +418,11 @@ connection expression.
 ```
 mult_conn_06: {
 
-  durLimitSecs: 5.0,
+  dur_limit_secs: 5.0,
 
   network: {
     procs: {
-      osc:    { class: sine_tone, args: { chCnt:6, hz:[110,220,440,880,1760,3520] }},
+      osc:    { class: sine_tone, args: { ch_cnt:6, hz:[110,220,440,880,1760,3520] }},
       split:  { class: audio_split, in:{ in:osc.out }, args: { select:[ 0,0, 1,1, 2,2 ] } },
       
       // Create merge.in0,in1,in2 by iterating across all outputs of 'split'.
@@ -381,6 +443,8 @@ mult_conn_06: {
 }
 ```
 
+![Example 6](svg/06_mult_conn.svg, "`mult_conn_06` processing network")
+
 The audio source for this network is a six channel signal generator,
 where the frequency is each channel is incremented by an octave.
 The _split_ processor then splits the audio signal into three
@@ -392,17 +456,23 @@ variables `out0`,`out1` and `out2`.
 The __audio_split__ class takes a single signal and splits it into multiple signals.
 The __audio_merge__ class takes multple signals and concatenates them into a single signal.
 Each of the three merge processor (merge_a,merge_b,merge_c) in `mult_conn_06` 
-demonstrates a slightly different ways of selecting multiple signals to merge
-in with a single `in:{...}` statement expression. 
+demonstrates three different ways of selecting multiple signals to merge
+in with a single `in:{...}` statement expression.
 
-1. Connect to all available source variables.
+The goal of this example is to show that fairly  complex connections
+between a source and destination processor can be achieved with
+a single `in:{...}` statement.  This syntax results in concise
+network descriptions that are easier to read and modify then making lists
+of individual connections between source and destination variables.
+
+#### Connect to all available source variables on a single source processor.
 
 ```
 merge_a: { class: audio_merge, in:{ in_:split.out_ } },
 ```
 `merge_a` creates three input variables (`in0`,`in1` and `in2`) and connects them
 to three source variables (`split.out0`,`split.out1`, and `split.out2`).
-The completely equivalent, and equally correct way of stating the same construct is:
+The equivalent but more verbose way of stating the same construct is:
 `merge_a: { class: audio_merge, in:{ in0:split.out0, in1:split.out1, in2:split.out2 } }`
 
 Aside from being more compact, the only other advantage to using the `_` (underscore)
@@ -410,7 +480,7 @@ suffix notation is that the connections will expand and contract with
 the count of outputs on _split_ should they change without having to change
 the code.
 
-2. Connect to a select set of source variables.
+#### Connect to a select set of source variables on a single source processor.
 
 ```
 merge_b:  { class: audio_merge, in:{ in_:split.out0_2 } },
@@ -427,7 +497,7 @@ the `in:{...}` statemennt could be changed to `in:{ in_:split.out1_2 }`.
 Likewise `in:{ in_:split.out_ }` can be seen as equivalent to: 
 `in:{ in_:split.out0_3 }` in this example.
 
-3. Create and connect to a selected variables.
+#### Connect multiple destination variable to a single source processor variable.
 
 The _begin_,_count_ notation can also be used on the destination
 side of the `in:{...}` statment expression. 
@@ -440,9 +510,6 @@ and connect both to `split.out1`.  Note that creating and connecting
 using the _begin_,_count_ notation is general. `in:{ in1_3:split.out0_2 }`
 produces a different result than the example, but is equally valid.
 
-
-
-
 TODO: 
 - Add the 'no_create' attribute to the audio_split.out.
 
@@ -454,19 +521,20 @@ An error should be generated.
 
 
 As demonstrated in `mult_conn_06` variables are identified by their label
-and an integer suffix id.  By default, for singular variable the suffix id is set to 0.
+and an integer suffix id.  By default, for non __mult__ variables, the suffix id is set to 0.
 Using the `in:{...}` statement however variables that have the 'mult' attribute
 can be instantiated multiple times with each instance having a different suffix id.
 
 Processors instances use a similar naming scheme; they have both a text label
 and a suffix id.
+
 ```
 proc_suffix_07: {
-  durLimitSecs: 5.0,
+  dur_limit_secs: 5.0,
 
   network: {
     procs: {
-      osc:    { class: sine_tone, args: { chCnt:6, hz:[110,220,440,880,1760, 3520] }},
+      osc:    { class: sine_tone, args: { ch_cnt:6, hz:[110,220,440,880,1760, 3520] }},
       split:  { class: audio_split, in:{ in:osc.out }, args: { select:[ 0,0, 1,1, 2,2 ] } },
 
 	  g0: { class:audio_gain, in:{ in:split0.out0 }, args:{ gain:0.9} },
@@ -480,6 +548,8 @@ proc_suffix_07: {
 }
 
 ```
+
+![Example 7](svg/07_proc_suffix.svg, "`proc_suffix_06` processing network")
 
 In this example three __audio_gain__ processors are instantiated with
 the same label 'g' and are then differentiated by their suffix id's:
