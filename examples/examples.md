@@ -21,10 +21,10 @@ system parameters that the program needs to compile and run the program.
       network: {
 
         procs: {
-	  // Create a 'sine_tone' oscillator.
+          // Create a 'sine_tone' oscillator.
           osc: { class: sine_tone },
-	  
-	  // Create an audio output file and fill it with the output of the oscillator.
+          
+          // Create an audio output file and fill it with the output of the oscillator.
           af:  { class: audio_file_out, in: { in:osc.out } args:{  fname:"$/out.wav"} }
         } 
       }      
@@ -253,10 +253,10 @@ presets_03: {
     }
 
     presets: {
-	  a: { lfo: { hz:1.0,       dc:[880 770] }, osc: { gain:[0.95,0.8] } },
-	  b: { lfo: { hz:[2.0 2.5], dc:220 }, osc: { gain:0.75 } },
-	  c: { lfo: a880 },
-	  d: [ a,b,0.5 ]          
+          a: { lfo: { hz:1.0,       dc:[880 770] }, osc: { gain:[0.95,0.8] } },
+          b: { lfo: { hz:[2.0 2.5], dc:220 }, osc: { gain:0.75 } },
+          c: { lfo: a880 },
+          d: [ a,b,0.5 ]          
     }
   }
 }
@@ -322,13 +322,13 @@ TODO: Check that this accurately describes preset interpolation.
 program_04: {
     
   dur_limit_secs: 10.0,
-	
+        
   network {
     procs: {
-	  tmr: { class: timer,                               args:{ period_ms:1000.0 }},
-	  cnt: { class: counter,  in: { trigger:tmr.out },   args:{ min:0, max:3, inc:1, init:0, mode:modulo } },
-	  log: { class: print,    in: { in:cnt.out, eol_fl:cnt.out }, args:{ text:["my","count"] }}
-	}
+          tmr: { class: timer,                               args:{ period_ms:1000.0 }},
+          cnt: { class: counter,  in: { trigger:tmr.out },   args:{ min:0, max:3, inc:1, init:0, mode:modulo } },
+          log: { class: print,    in: { in:cnt.out, eol_fl:cnt.out }, args:{ text:["my","count"] }}
+        }
   }
 }
 ```
@@ -378,7 +378,7 @@ The __add__ processor then sums the output of _cnt_ and _numb_.
 mult_inputs_05: {
     
   dur_limit_secs: 10.0,
-	
+        
   network {
     procs: {
       tmr:   { class: timer,                               args:{ period_ms:1000.0 }},
@@ -537,10 +537,10 @@ proc_suffix_07: {
       osc:    { class: sine_tone, args: { ch_cnt:6, hz:[110,220,440,880,1760, 3520] }},
       split:  { class: audio_split, in:{ in:osc.out }, args: { select:[ 0,0, 1,1, 2,2 ] } },
 
-	  g0: { class:audio_gain, in:{ in:split0.out0 }, args:{ gain:0.9} },
-	  g1: { class:audio_gain, in:{ in:split0.out1 }, args:{ gain:0.5} },
-	  g2: { class:audio_gain, in:{ in:split0.out2 }, args:{ gain:0.2} },
-	          
+          g0: { class:audio_gain, in:{ in:split0.out0 }, args:{ gain:0.9} },
+          g1: { class:audio_gain, in:{ in:split0.out1 }, args:{ gain:0.5} },
+          g2: { class:audio_gain, in:{ in:split0.out2 }, args:{ gain:0.2} },
+                  
       merge: { class: audio_merge, in:{ in_:g_.out } },
       af:    { class: audio_file_out, in:{ in:merge.out },  args:{ fname:"$/out_a.wav" }}
     }
@@ -549,7 +549,7 @@ proc_suffix_07: {
 
 ```
 
-![Example 7](svg/07_proc_suffix.svg "`proc_suffix_06` processing network")
+![Example 7](svg/07_proc_suffix.svg "`proc_suffix_07` processing network")
 
 In this example three __audio_gain__ processors are instantiated with
 the same label 'g' and are then differentiated by their suffix id's:
@@ -584,6 +584,206 @@ TODO:
 - How general is the 'in' statement notation? Can underscore notation be 
 used simultaneously on both the processor and the variable?
 
+
+### Example 08: Instantiating variables from the `args:{...}` statement.
+
+Previous examples showed how to instantiate __mult__  variables in the `in:{...}` statement.
+This example shows how to instantiate __mult__ variables from the `args:{...}` statement.
+
+An `audio_mix` processor is the perfect motivator for this feature.
+A mixer is a natural example of a processor that requires a context dependent number of inputs.
+The slight complication however is that every input also has a gain coefficient
+associated with it that the user may want to set.
+
+```
+mix_08: {
+  non_real_time_fl:true,
+  dur_limit_secs:5.0,
+      
+  network: {
+
+    procs: {
+      osc0:  { class: sine_tone, args: { hz:110 } },
+      osc1:  { class: sine_tone, args: { hz:220 } },
+
+      // Instantiate gain:0 and gain:1 to control the input gain of in:0 and in:1.
+      mix:   { class: audio_mix, in: { in_:osc_.out }, args:{ igain0:[0.8, 0], igain1:[0, 0.2] } },
+      af:    { class: audio_file_out, in: { in:mix.out } args:{  fname:"$/out.wav"} }
+    } 
+  }          
+}
+```
+
+![Example 8](svg/08_mix.svg "`mix_08` processing network")
+
+Notice that the `mix` processor instantiates two stereo input channels in the `in:{...}` statement
+and then assigns initial gain values to each individual channel. If a scalar value was given instead of a
+list (e.g. `igain0:0.8`) then the scalar value would be assigned to all channels
+
+### Example 09: Polyphonic subnet
+
+This example introduces the __poly__ construct.  In previous examples when the
+network used multiple copies of the same processor they were manually constructed - each with
+a unique suffix id.  The __poly_construct allows whole sub-networks to be duplicated
+and automatically assigned unique suffix id's. 
+
+
+```
+simple_poly_09: {
+   
+  non_real_time_fl:true,
+  dur_limit_secs: 5.0,
+
+  network: {
+
+    procs: {
+
+      g_list:  { class: list, args: { in:0, list:[ 110f,220f,440f ]}},
+      dc_list: { class: list, args: { in:0, list:[ 220f,440f,880f ]}},
+          
+      osc_poly: {
+        class: poly,
+        args: { count:3 },  // Create 3 instances of 'network'.
+           
+        network: {
+          procs: {
+            lfo:  { class: sine_tone,   in:{ _.dc:_.dc_list.value_, _.gain:_.g_list.value_ }  args: { ch_cnt:1, hz:3 }},
+            sh:   { class: sample_hold, in:{ in:lfo.out }},
+            osc:  { class: sine_tone,   in:{ hz: sh.out }},
+         }
+       }               
+     }
+
+     // Iterate over the instances of `osc_poly.osc_.out` to create one `audio_merge`
+     // input for every output from the polyphonic network.
+     merge: { class: audio_merge,    in:{ in_:osc_poly.osc_.out}, args:{ gain:1, out_gain:0.5 }},
+     af:    { class: audio_file_out, in:{ in:merge.out }          args:{ fname:"$/out.wav"} }
+    }
+  }
+}
+```
+![Example 9](svg/09_simple_poly.svg "`simple_poly_09` processing network")
+
+Notice the _lfo_ `in:{...}` statement for the `dc` variable
+connection. The statement contains three underscores.  The first
+underscore indicates that the connection should be made to all of the
+_lfo_ processors in the subnet (i.e. `lfo0`,`lfo1`,`lfo2`). The second
+underscore indicates that the source is located outside the subnet.
+The compiler will iterate through the network, in execution order,
+looking for a processor named `dc_list` as the source. The last
+underscore indicates that that the connections should begin with
+`g_list.value0` and iterate forward to locate `glist.value1` and
+`glist.value2` to locate the other source variables.
+
+One subtle characteristic of the the _poly_ subnet is that the
+internal connections (`lfo->sh->osc`) do not specifiy processor
+id's.  By default the `in:{...}` assumes that source processors
+and desination processors share the same id.  This allows the
+suffix id to be dropped from the source processor and thereby to simplify
+the syntax for connecting sub-network processors.
+
+Finally note that _poly_ to external connections are simply made
+by referring to the poly source by name to locate the source processor.
+This is shown in the `merge` input statement `in:{ in_:osc_poly.osc_.out}`.
+
+
+### Example 10: Feedback
+
+```
+feedback_10: {
+  non_real_time_fl:true,
+  max_cycle_count:   10,
+
+  network: {
+    procs: {
+      a:   { class: number,  log:{out:0}, args:{ in:1 }},
+      b:   { class: number,  log:{out:0}, args:{ in:2 }},
+              
+      sum: { class: add,  in: { in0:a.out, in1:b.out }, out: {out:b.in }, log:{out:0} }
+    }
+  }
+}
+```
+![Example 10](svg/10_feedback.svg "`feedback_10` processing network")
+
+This example demonstrates how to achieve a feedback connection using
+the `out:{...}` statement.  Until now all the examples have been
+forward connections. That is processors outputs act as sources to
+processes that execute later.  The `out:{...}` statement allows
+connections to processes that occur earlier.  The trick to making this
+work is to be sure that the destination processor does not depend on
+the variable receiving the feedback having a valid value on the
+very first cycle of network execution - prior to the source processor
+executing.  One way to achieve this is to set the value of the
+variable receiving the feedback to a default value in the `args:{...}`
+statement. This approach is used here with the `b.in` variable.
+
+The `log:{...}` statement is also introduced in this example.
+This statement has the form `log:{ <var>:<suffix_id>, <var>:<suffix_id> ... }`.
+Any variables included in the statement will be logged to the console
+whenever the variable changes value.  This is often a more convenient
+way to monitor the changing state of the network then using calls to `print`.
+The output is somewhat cryptic but it still
+gives most of the necassary information to debug a program.
+
+```
+: exe cycle:    process:   id:       variable: id     vid     ch :         : : type:value  : destination
+: ---------- ----------- ----- --------------- --     ---    -----             ------------: -------------
+:        0 :          a:    0:            out:  0 vid:  2 ch: -1 :         : : <invalid>: 
+:        0 :          a:    0:            out:  0 vid:  2 ch: -1 :         : : i:1 : 
+:        0 :          b:    0:            out:  0 vid:  2 ch: -1 :         : : <invalid>: 
+:        0 :          b:    0:            out:  0 vid:  2 ch: -1 :         : : i:2 : 
+:        0 :        add:    0:            out:  0 vid:  0 ch: -1 :         : : d:3.000000 :  dst:b:0.in:0: 
+info: : Entering runtime.   
+:        0 :          a:    0:            out:  0 vid:  2 ch: -1 :         : : i:1 :  dst:add:0.in:0: 
+:        0 :          b:    0:            out:  0 vid:  2 ch: -1 :         : : i:2 :  dst:add:0.in:1: 
+:        0 :        add:    0:            out:  0 vid:  0 ch: -1 :         : : d:3.000000 :  dst:b:0.in:0: 
+:        1 :          b:    0:            out:  0 vid:  2 ch: -1 :         : : i:3 :  dst:add:0.in:1: 
+:        1 :        add:    0:            out:  0 vid:  0 ch: -1 :         : : d:4.000000 :  dst:b:0.in:0: 
+:        2 :          b:    0:            out:  0 vid:  2 ch: -1 :         : : i:4 :  dst:add:0.in:1: 
+:        2 :        add:    0:            out:  0 vid:  0 ch: -1 :         : : d:5.000000 :  dst:b:0.in:0: 
+:        3 :          b:    0:            out:  0 vid:  2 ch: -1 :         : : i:5 :  dst:add:0.in:1: 
+```
+
+The `exe cycle` value give the execution cycle index. Each time the network completes
+a cycle this index advances. The process and variable 'id' column gives thethe integer suffix
+id's of the associated process and variable.  The 'vid' column gives the variable id
+for the given variable. Every variable instance is given a unique integer identifier which
+allows it to be located quickly by the system. The 'ch' column indicates the channel value
+of the variable, or -1 if the variable is not channelized. Recall that variables may be
+channelized if the audio signal they are applied to have multiple channels.  The 'type:value'
+column give the data type and current value of the variable.
+
+The data types are:
+
+Type | Description
+-----|-------------
+b    | bool
+u    | unsigned
+i    | int
+f    | float
+d    | double
+s    | string
+t    | time
+c    | cfg
+abuf | audio
+fbuf | spectrum
+mbuf | MIDI
+
+
+### Appendix:
+
+#### Network Parameters:
+
+Label                 | Description
+----------------------|------------------------------------------------------------------------
+`non_real_time_fl`    | Run the program in non-real-time for `max_cycle_count` cycles.
+`frames_per_cycle`    | Count of audio sample frames per network execution cycle.
+`sample_rate`         | Default system audio sample rate.
+`max_cycle_count`     | Maximum count of network cycles to execute in non-real-time mode.
+`dur_limit_secs`      | Set `max_cycle_count` as (`sample_rate` * `dur_limit_secs`)/`frames_per_cycle`.
+`print_class_dict_fl` | 
+`print_network_fl`    |
 
 
 ### Some Invariants

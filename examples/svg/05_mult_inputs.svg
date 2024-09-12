@@ -8,7 +8,7 @@
    version="1.1"
    id="svg4975"
    inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
-   sodipodi:docname="mult_inputs_05.svg"
+   sodipodi:docname="05_mult_inputs.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -25,8 +25,8 @@
      inkscape:document-units="mm"
      showgrid="false"
      inkscape:zoom="0.914906"
-     inkscape:cx="514.26048"
-     inkscape:cy="25.685699"
+     inkscape:cx="508.24893"
+     inkscape:cy="26.778707"
      inkscape:window-width="1444"
      inkscape:window-height="1236"
      inkscape:window-x="1768"
@@ -271,16 +271,16 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.35759px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264999;stroke-dasharray:none;stroke-opacity:1"
-       x="70.084045"
+       x="72.200714"
        y="101.89201"
        id="text1846-1-6"><tspan
          sodipodi:role="line"
-         id="tspan2038-46"
-         x="70.084045"
-         y="101.89201">value</tspan><tspan
+         x="72.200714"
+         y="101.89201"
+         id="tspan1251">out</tspan><tspan
          sodipodi:role="line"
          id="tspan2040-2"
-         x="70.084045"
+         x="72.200714"
          y="109.839" /></text>
     <rect
        style="fill:#ffe6d5;stroke:#000000;stroke-width:0.3;stroke-dasharray:none;stroke-opacity:1"
@@ -516,7 +516,7 @@
        sodipodi:nodetypes="csc" />
     <path
        style="fill:none;stroke:#000000;stroke-width:0.499999;marker-end:url(#marker6190)"
-       d="m 79.375864,70.660447 c 0,0 16.250131,-26.542293 42.606456,-19.629019 l 36.92007,9.684148"
+       d="m 79.375864,70.660447 c 0,0 27.997896,-28.514648 53.632036,-19.276672 l 25.89449,9.331801"
        id="path6186"
        sodipodi:nodetypes="csc" />
   </g>
