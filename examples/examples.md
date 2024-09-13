@@ -6,7 +6,7 @@ In this example the program is contained in the dictionary labeled `sine_file_01
 the preceeding fields (e.g. `base_dir`,`proc_dict`,`subnet_dict`, etc.) contain
 system parameters that the program needs to compile and run the program.
 
-``` yaml
+``` javascript
 {
   base_dir:    "~/src/caw/examples",
   proc_dict:   "~/src/caw/examples/proc_dict.cfg",
@@ -112,8 +112,8 @@ Note that unless stated otherwise all variables can be either input or
 output ports for their processor. The `no_src` attribute on
 `sine_tone.out` indicates that it is an output-only variable. The
 `src` attribute on `audio_file_out.in` indicates that it must be
-connected to a source variable or the processor cannot be instantiated
-- and therefore the network it is contained by cannot be instantiated.
+connected to a source variable or the processor cannot be instantiated -
+and therefore the network it is contained by cannot be instantiated.
 Note that this isn't to say that it can't be an output variable - only
 that it must be connected.
 
@@ -624,7 +624,7 @@ list (e.g. `igain0:0.8`) then the scalar value would be assigned to all channels
 
 This example introduces the __poly__ construct.  In previous examples when the
 network used multiple copies of the same processor they were manually constructed - each with
-a unique suffix id.  The __poly_construct allows whole sub-networks to be duplicated
+a unique suffix id.  The __poly__ construct allows whole sub-networks to be duplicated
 and automatically assigned unique suffix id's. 
 
 
@@ -662,6 +662,7 @@ simple_poly_09: {
   }
 }
 ```
+
 ![Example 9](svg/09_simple_poly.svg "`simple_poly_09` processing network")
 
 Notice the _lfo_ `in:{...}` statement for the `dc` variable
@@ -710,7 +711,7 @@ This example demonstrates how to achieve a feedback connection using
 the `out:{...}` statement.  Until now all the examples have been
 forward connections. That is processors outputs act as sources to
 processes that execute later.  The `out:{...}` statement allows
-connections to processes that occur earlier.  The trick to making this
+connections to processes that occur earlier in the execution chain.  The trick to making this
 work is to be sure that the destination processor does not depend on
 the variable receiving the feedback having a valid value on the
 very first cycle of network execution - prior to the source processor
@@ -718,13 +719,12 @@ executing.  One way to achieve this is to set the value of the
 variable receiving the feedback to a default value in the `args:{...}`
 statement. This approach is used here with the `b.in` variable.
 
-The `log:{...}` statement is also introduced in this example.
-This statement has the form `log:{ <var>:<suffix_id>, <var>:<suffix_id> ... }`.
+This example also introduces the `log:{...}` statement.
+The `log:{...}` statement has the form `log:{ <var>:<suffix_id>, <var>:<suffix_id> ... }`.
 Any variables included in the statement will be logged to the console
 whenever the variable changes value.  This is often a more convenient
 way to monitor the changing state of the network then using calls to `print`.
-The output is somewhat cryptic but it still
-gives most of the necassary information to debug a program.
+The output is somewhat cryptic but contains most of information to debug a program.
 
 ```
 : exe cycle:    process:   id:       variable: id     vid     ch :         : : type:value  : destination
@@ -745,30 +745,94 @@ info: : Entering runtime.
 :        3 :          b:    0:            out:  0 vid:  2 ch: -1 :         : : i:5 :  dst:add:0.in:1: 
 ```
 
-The `exe cycle` value give the execution cycle index. Each time the network completes
-a cycle this index advances. The process and variable 'id' column gives thethe integer suffix
-id's of the associated process and variable.  The 'vid' column gives the variable id
-for the given variable. Every variable instance is given a unique integer identifier which
-allows it to be located quickly by the system. The 'ch' column indicates the channel value
-of the variable, or -1 if the variable is not channelized. Recall that variables may be
-channelized if the audio signal they are applied to have multiple channels.  The 'type:value'
-column give the data type and current value of the variable.
+#### Log Column Descriptions
 
-The data types are:
+Column      | Description
+------------|---------------------------------------------------------------------
+exe cycle   | The `exe cycle` value give the execution cycle index.
+            | Each time the network completes a cycle this index advances.
+process id  | The process label and suffix id of the variable
+variable id | The variable label and variable suffix id.
+vid         | System assigned unique (per process) id.
+ch          | Channel index or -1 if the variable is not channelized.
+            | Variables may be channelized if the audio signal they are applied to have multiple channels.
+type:value  | Data type and current value of the variable.
 
-Type | Description
------|-------------
-b    | bool
-u    | unsigned
-i    | int
-f    | float
-d    | double
-s    | string
-t    | time
-c    | cfg
-abuf | audio
-fbuf | spectrum
-mbuf | MIDI
+### Example 11: Audio Feedback
+
+Coming soon.
+
+### Example 12: User Defined Processor
+
+__caw__ user defined processor act somewhat like functions in a procedural programming language.
+They allow a network designer to create an arbitrarily complex network but then
+implement a well defined interface to it. The network can then be instantiated just like
+a built-in process with a limited set of inputs and outputs. This hides the complexity of
+the implementation of the network from the user and makes for simpler top level networks.
+
+Here is a user defined processor which implements an oscillator with internal amplitude and frequency modulators.
+```
+mod_osc: {
+
+  vars: {
+    hz:            { proxy:hz_lfo.dc,            doc:"Audio frequency" },
+    hz_mod_hz:     { proxy:hz_lfo.hz,            doc:"Frequency modulator hz" },
+    hz_mod_depth:  { proxy:hz_lfo.gain,          doc:"Frequency modulator depth" },
+    amp_mod_hz:    { proxy:amp_lfo.hz,           doc:"Amplitude modulator hz" },
+    amp_mod_depth: { proxy:amp_lfo.gain,         doc:"Amplutide modulator depth."},
+    mo_out:        { proxy:ogain.out flags:[out] doc:"Oscillator output."},
+  },
+        
+  network: {
+    procs: {
+      // Frequency modulating LFO
+      hz_lfo:   { class: sine_tone,   args: { ch_cnt:1 }}
+      hz_sh:    { class: sample_hold, in:{ in:hz_lfo.out }}
+
+      // Amplitude modulating LFO
+      amp_lfo:  { class: sine_tone,   args: { ch_cnt:1 }}
+      amp_sh:   { class: sample_hold, in:{ in:amp_lfo.out }}
+
+      // Audio oscillator
+      osc:    { class: sine_tone,   in:{ hz: hz_sh.out }}        
+      ogain:  { class: audio_gain,  in:{ in:osc.out, gain:amp_sh.out}}
+    }
+          
+    presets: {
+        net_a: { hz_lfo: { dc:220, gain:55 }, amp_lfo: { gain:0.8 } },
+        net_b: { hz_lfo: { dc:110, gain:25 }, amp_lfo: { gain:0.7 } },
+    }
+  }
+}
+
+```
+
+The structure of a user defined procedure is the same as a __caw__ top level program with the
+addition of the __vars__ dictionary. The elements of the __vars__ dictionary are a simplified
+version of the variable descriptions from the processor class description record.
+Each user defined __var__ element creates an input or output port for the user defined process using
+the `proxy` keyword.  Output ports are distinguished from input ports by the `out` attribute as
+shown in the `mo_out` port. 
+
+The `mod_osc` user defined processor is instantiated and used just like a built-in processor.
+```
+user_defined_subnet_12 : {
+  non_real_time_fl: true,
+  dur_limit_secs:   5,
+	  
+  network: {
+    procs: {
+      sub_osc: { class: mod_osc  args:{ hz:220, hz_mod_hz:3, hz_mod_depth:55, amp_mod_hz:2, amp_mod_depth:0.5 }},             
+      af:      { class: audio_file_out, in:{ in:sub_osc.mo_out } args:{ fname:"$/out.wav"}}           
+   }
+ }
+}
+```
+
+
+
+
+
 
 
 ### Appendix:
@@ -785,6 +849,25 @@ Label                 | Description
 `print_class_dict_fl` | 
 `print_network_fl`    |
 
+
+#### `log:{...}` statement data type abbreviations:
+
+Type | Description
+-----|-------------
+b    | bool
+u    | unsigned
+i    | int
+f    | float
+d    | double
+s    | string
+t    | time
+c    | cfg
+abuf | audio
+fbuf | spectrum
+mbuf | MIDI
+
+
+### Execution Model
 
 ### Some Invariants
 
