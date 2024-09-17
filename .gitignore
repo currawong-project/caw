@@ -1,5 +1,6 @@
 # directories to ignore
 libcw
+io
 
 .deps
 autom4te.cache
