@@ -71,6 +71,7 @@ src_caw_caw_SOURCES   =  $(libcwHDR) $(libcwSRC) src/caw/main.cpp
 # 2) -ldl is required for dlopen(),dlclose() ...
 # src_caw_caw_LDADD     = libcw.la  -lpthread -ldl
 
+# note: libdl is the dynamic loader library
 src_caw_caw_LDADD     =   -lpthread -ldl
 
 if cwFFTW
