@@ -39,6 +39,7 @@ typedef struct app_str
   object_t*             flow_cfg;           // flow program cfg
   object_t*             io_cfg;             //  IO lib cfg.
   const char*           cmd_line_pgm_label; //
+  const char*           cmd_line_cfg_fname;
 
   unsigned appSelId;
   
@@ -112,6 +113,13 @@ rc_t _load_init_pgm( app_t& app, const char* pgm_label, bool& exec_complete_fl_r
     goto errLabel;
   }
 
+  if((rc = program_initialize(app.ioFlowH)) != kOkRC )
+  {
+    rc = cwLogError(rc,"Program initialize failed on '%s'.",cwStringNullGuard(pgm_label));
+    goto errLabel;
+  }
+
+  // if the program is in NRT mode then run it
   if( is_program_nrt(app.ioFlowH) )
   {
     exec_complete_fl_ref = true;
@@ -294,12 +302,14 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
     goto errLabel;
   }
 
+  // Get the selector-id associated with the first command line arg.  (e.g. exec, hw_report, ...)
   if((app.appSelId = labelToId( appSelA, argv[1], kInvalidId )) == kInvalidId )
   {
     rc = cwLogError(kInvalidArgRC,"The command line action '%s' is not valid.",argv[1]);
     _print_command_line_help();
   }
 
+  // if 'exec' or 'hw_report' was selected
   if( app.appSelId == kExecSelId || app.appSelId == kHwReportSelId )
   {
     if( argc <= 3 )
@@ -307,11 +317,19 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
       rc = cwLogError(kInvalidArgRC,"The command line is missing required arguments.");
       _print_command_line_help();      
     }
-    
+
+    // get the fourth cmd line arg (pgm label of the program to run from the cfg file in arg[2])
     app.cmd_line_pgm_label = argv[3];
+    app.cmd_line_cfg_fname  = argv[2];
+
+    if( app.cmd_line_cfg_fname == nullptr )
+    {
+      rc = cwLogError(kInvalidArgRC,"No 'caw' program cfg file was provided.");
+      goto errLabel;
+    }
       
     // parse the cfg. file
-    if((rc = objectFromFile(argv[2],app.flow_cfg)) != kOkRC )
+    if((rc = objectFromFile(app.cmd_line_cfg_fname,app.flow_cfg)) != kOkRC )
     {
       rc = cwLogError(rc,"Parsing failed on the cfg. file '%s'.",argv[1]);
       goto errLabel;
@@ -435,10 +453,18 @@ int main( int argc, char* argv[] )
       break;
 
   }
+
+  // if we are here then then program 'exec' was requested
   
-  if( app.cmd_line_pgm_label != nullptr )
-    if((rc = _load_init_pgm(app, app.cmd_line_pgm_label, exec_complete_fl )) != kOkRC )
-      goto errLabel;
+  if( app.cmd_line_pgm_label == nullptr )
+  {
+    rc = cwLogError(kInvalidArgRC,"The label of the program to execute from %s was not given.",cwStringNullGuard(app.cmd_line_cfg_fname));
+    goto errLabel;
+  }
+
+  // load the requested program - and execute it if it is in non-real-time mode
+  if((rc = _load_init_pgm(app, app.cmd_line_pgm_label, exec_complete_fl )) != kOkRC )
+    goto errLabel;
   
 
   if( !exec_complete_fl )
