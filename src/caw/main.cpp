@@ -7,6 +7,7 @@
 #include "cwObject.h"
 #include "cwFileSys.h"
 #include "cwIo.h"
+#include "cwVectOps.h"
 
 #include "cwIoFlowCtl.h"
 
@@ -16,6 +17,7 @@
 using namespace cw;
 
 enum {
+  kUiSelId,
   kExecSelId,
   kTestSelId,
   kHwReportSelId,
@@ -24,6 +26,7 @@ enum {
 };
 
 idLabelPair_t appSelA[] = {
+  { kUiSelId,       "ui" },
   { kExecSelId,     "exec" },
   { kTestSelId,     "test" },
   { kHwReportSelId, "hw_report" },
@@ -38,10 +41,12 @@ typedef struct app_str
 {
   object_t*             flow_cfg;           // flow program cfg
   object_t*             io_cfg;             //  IO lib cfg.
-  const char*           cmd_line_pgm_label; //
-  const char*           cmd_line_cfg_fname;
-
-  unsigned appSelId;
+  unsigned              cmd_line_action_id; // kUiSelId | kExecSelId | kTestSelId ....
+  const char*           cmd_line_pgm_fname; // pgm file passed from the comman dline
+  const char*           cmd_line_pgm_label; // pgm label passed from the command line 
+  unsigned              pgm_preset_idx;     // currently selected pgm preset
+  
+  bool                  run_fl;             // true if the program is running (and the 'run' check is checked)
   
   io::handle_t          ioH;
   io_flow_ctl::handle_t ioFlowH;
@@ -56,7 +61,17 @@ enum
   kNetPrintBtnId,
   kReportBtnId,  
   kLatencyBtnId, 
-  kValueNumbId
+  kValueNumbId,
+
+  kPgmSelId,
+  kPgmPresetSelId,
+  kRunCheckId,
+
+
+  kPgmBaseSelId,
+  kPgmMaxSelId = kPgmBaseSelId + 1000,
+  kPgmPresetBaseSelId,
+  kPgmPresetMaxSelId = kPgmPresetBaseSelId + 1000
 };
 
 ui::appIdMap_t  appIdMapA[] = {
@@ -67,7 +82,12 @@ ui::appIdMap_t  appIdMapA[] = {
   { kPanelDivId,     kNetPrintBtnId,  "netPrintBtnId" },
   { kPanelDivId,     kReportBtnId,    "reportBtnId" },
   { kPanelDivId,     kLatencyBtnId,   "latencyBtnId" },
-  { kPanelDivId,     kValueNumbId,    "valueNumbId" }
+  
+  { kPanelDivId,     kValueNumbId,    "valueNumbId" },
+  
+  { kPanelDivId,     kPgmSelId,       "pgmSelId" },
+  { kPanelDivId,     kPgmPresetSelId, "pgmPresetSelId" },
+  { kPanelDivId,     kRunCheckId,     "runCheckId" }
 };
 
 const unsigned appIdMapN = sizeof(appIdMapA)/sizeof(appIdMapA[0]);
@@ -94,7 +114,7 @@ errLabel:
 }
 
 
-rc_t _load_init_pgm( app_t& app, const char* pgm_label, bool& exec_complete_fl_ref )
+rc_t _load_init_pgm_no_gui( app_t& app, const char* pgm_label, bool& exec_complete_fl_ref )
 {
   rc_t     rc = kOkRC;
   unsigned pgm_idx;
@@ -132,6 +152,134 @@ errLabel:
   return rc;
 }
 
+
+rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
+{
+  rc_t rc = kOkRC;
+
+  unsigned pgm_idx          = kInvalidIdx;
+  unsigned pgmPresetSelUuId = io::uiFindElementUuId( app->ioH, kPgmPresetSelId );
+  unsigned runCheckUuId     = io::uiFindElementUuId( app->ioH, kRunCheckId );
+  unsigned preset_cnt       = 0;
+
+  if( !(kPgmBaseSelId <= pgmSelOptId && pgmSelOptId <= kPgmMaxSelId ) )
+  {
+    rc = cwLogError(kInvalidStateRC,"An invalid pgm select id was encountered.");
+    goto errLabel;
+  }
+
+  // empty the contents of the preset select menu
+  if((rc = uiEmptyParent(app->ioH,pgmPresetSelUuId)) != kOkRC )
+  {
+    rc = cwLogError(rc,"The program preset menu clear failed.");
+    goto errLabel;
+  }
+
+  uiSetEnable( app->ioH, pgmPresetSelUuId, false );  // Disable the preset menu and run checkbox in anticipation of error.
+  uiSetEnable( app->ioH, runCheckUuId, false );      //
+  app->pgm_preset_idx = kInvalidIdx;                 // The preset menu is empty and so there can be no valid preset selected.
+  pgm_idx             = pgmSelOptId - kPgmBaseSelId; // Calc the ioFlowCtl preset index of the selected preset.
+
+  // load the program
+  if((rc = program_load(app->ioFlowH, pgm_idx )) != kOkRC )
+  {
+    rc = cwLogError(rc,"Program load failed.");
+    goto errLabel;
+  }
+
+  preset_cnt = program_preset_count(app->ioFlowH);
+  
+  // populate the preset menu
+  for(unsigned i=0; i<preset_cnt; ++i)
+  {
+    unsigned uuId;
+    if((rc = uiCreateOption( app->ioH, uuId, pgmPresetSelUuId, nullptr, kPgmPresetBaseSelId+i, kInvalidId, "optClass", program_preset_title(app->ioFlowH,i) )) != kOkRC )
+    {
+      rc = cwLogError(rc,"Error on populating the program preset select widget.");
+      goto errLabel;
+    }
+  }
+
+  if( preset_cnt > 0 )
+  {
+    uiSetEnable( app->ioH, pgmPresetSelUuId, true );
+    app->pgm_preset_idx = 0; // since it is showing - select the first preset as the default preset
+  }
+  
+  uiSetEnable( app->ioH, runCheckUuId, true );
+  
+errLabel:
+  return rc;
+}
+
+rc_t _on_pgm_preset_select( app_t* app, unsigned pgmPresetSelOptId )
+{
+  rc_t rc = kOkRC;
+  
+  if( !(kPgmPresetBaseSelId <= pgmPresetSelOptId && pgmPresetSelOptId <= kPgmPresetMaxSelId ) )
+  {
+    rc = cwLogError(kInvalidStateRC,"An invalid pgm preset select id was encountered.");
+    goto errLabel;
+  }
+
+  app->pgm_preset_idx = pgmPresetSelOptId - kPgmPresetBaseSelId;
+
+
+errLabel:
+
+  return rc;
+}
+
+rc_t _on_pgm_run( app_t* app, bool run_check_fl )
+{
+  rc_t rc = kOkRC;
+
+  printf("run:%i %i\n",run_check_fl,app->run_fl);
+  
+  if( run_check_fl == app->run_fl )
+    return rc;
+  
+  if( run_check_fl && !program_is_initialized( app->ioFlowH) )
+  {
+    if((rc = program_initialize(app->ioFlowH, app->pgm_preset_idx )) != kOkRC )
+    {
+      rc = cwLogError(rc,"Program initialization failed.");
+      goto errLabel;
+    }
+  }
+
+  app->run_fl = run_check_fl;
+
+errLabel:
+  return rc;
+}
+
+rc_t _on_ui_init( app_t* app )
+{
+  rc_t rc = kOkRC;
+  unsigned pgmSelUuId = io::uiFindElementUuId( app->ioH, kPgmSelId );
+  unsigned pgm_cnt = program_count(app->ioFlowH);
+  
+  // create pgm menu
+  for(unsigned i=0; i<pgm_cnt; ++i)
+  {
+    unsigned uuId;
+    if((rc = uiCreateOption( app->ioH, uuId, pgmSelUuId, nullptr, kPgmBaseSelId+i, kInvalidId, "optClass", program_title(app->ioFlowH,i) )) != kOkRC )
+    {
+      rc = cwLogError(rc,"Error on populating the program select widget.");
+      goto errLabel;
+    }
+
+  }
+
+  if( pgm_cnt )
+    _on_pgm_select(app, kPgmBaseSelId );
+  
+errLabel:
+  return rc;
+}
+
+
 rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
 {
   switch( m.appId )
@@ -158,6 +306,18 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
     case kValueNumbId:
       //app->value = m.value->u.u;
       //cwLogInfo("Setting value:%i",app->value);
+      break;
+
+    case kPgmSelId:
+      _on_pgm_select(app,m.value->u.u);
+      break;
+      
+    case kPgmPresetSelId:
+      _on_pgm_preset_select(app,m.value->u.u);
+      break;
+      
+    case kRunCheckId:
+      _on_pgm_run(app,m.value->u.b);
       break;
     
   }
@@ -194,6 +354,8 @@ rc_t _ui_callback( app_t* app, const io::ui_msg_t& m )
           
     case ui::kInitOpId:
       cwLogInfo("UI Init.");
+      if( app->cmd_line_action_id == kUiSelId )
+        _on_ui_init(app);
       break;
 
     case ui::kValueOpId:
@@ -250,8 +412,29 @@ rc_t _io_callback( void* arg, const io::msg_t* m )
       break;
       
     case io::kAudioTId:
-      if( is_executable(app->ioFlowH) && m != nullptr )
-        io_flow_ctl::exec(app->ioFlowH,*m);
+      {
+        bool executable_fl = is_executable(app->ioFlowH);
+
+        // if the app is executable and we are in 'run' mode
+        if(app->run_fl && executable_fl  && m != nullptr )
+        {
+          io_flow_ctl::exec(app->ioFlowH,*m);
+        }
+        else
+        {
+          if( m != nullptr )
+            for(unsigned i=0; i<m->u.audio->oBufChCnt; ++i)
+              vop::zero(m->u.audio->oBufArray[i],m->u.audio->dspFrameCnt);
+        }
+        
+        // if the app is not executable then we should exit run mode
+        if(app->run_fl && !executable_fl )
+        {
+          app->run_fl = false;
+          uiSendValue(app->ioH, io::uiFindElementUuId( app->ioH, kRunCheckId ), false );
+        }
+        
+      }
       break;
       
     case io::kAudioMeterTId:
@@ -281,9 +464,10 @@ void _print_command_line_help()
 {
   const char* usage =
     "Usage:\n"
-    "       caw exec      <program_cfg_fname> <program_label>\n"
-    "       caw hw_report <program_cfg_fname> <program_label>\n"
-    "       caw test <test_cfg_fname> (<module_label> | all) (<test_label> | all) (compare | echo | gen_report )* {args ...}\n"
+    "       caw ui        <program_cfg_fname> {<program_label>} : Run with a GUI.\n"
+    "       caw exec      <program_cfg_fname> <program_label>   : Run without a GUI.\n"
+    "       caw hw_report <program_cfg_fname>                   : Print the hardware details and exit.\n"
+    "       caw test      <test_cfg_fname> (<module_label> | all) (<test_label> | all) (compare | echo | gen_report )* {args ...}\n"
     "       caw test_stub ...\n";
     
   cwLogPrint(usage);
@@ -295,7 +479,7 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
   rc_t rc = kOkRC;
   const char* io_cfg_fn = nullptr;
   
-  if( argc < 1 )
+  if( argc < 2 )
   {
     rc = kInvalidArgRC;
     _print_command_line_help();
@@ -303,33 +487,32 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
   }
 
   // Get the selector-id associated with the first command line arg.  (e.g. exec, hw_report, ...)
-  if((app.appSelId = labelToId( appSelA, argv[1], kInvalidId )) == kInvalidId )
+  if((app.cmd_line_action_id = labelToId( appSelA, argv[1], kInvalidId )) == kInvalidId )
   {
     rc = cwLogError(kInvalidArgRC,"The command line action '%s' is not valid.",argv[1]);
     _print_command_line_help();
   }
 
-  // if 'exec' or 'hw_report' was selected
-  if( app.appSelId == kExecSelId || app.appSelId == kHwReportSelId )
+  // if 'ui,'exec' or 'hw_report' was selected
+  if( app.cmd_line_action_id==kUiSelId || app.cmd_line_action_id == kExecSelId || app.cmd_line_action_id == kHwReportSelId )
   {
-    if( argc <= 3 )
+    if( argc < 3 )
     {
       rc = cwLogError(kInvalidArgRC,"The command line is missing required arguments.");
       _print_command_line_help();      
     }
 
-    // get the fourth cmd line arg (pgm label of the program to run from the cfg file in arg[2])
-    app.cmd_line_pgm_label = argv[3];
-    app.cmd_line_cfg_fname  = argv[2];
-
-    if( app.cmd_line_cfg_fname == nullptr )
+    // store the pgm cfg fname
+    app.cmd_line_pgm_fname  = argv[2];
+  
+    if( app.cmd_line_pgm_fname == nullptr )
     {
       rc = cwLogError(kInvalidArgRC,"No 'caw' program cfg file was provided.");
       goto errLabel;
     }
       
     // parse the cfg. file
-    if((rc = objectFromFile(app.cmd_line_cfg_fname,app.flow_cfg)) != kOkRC )
+    if((rc = objectFromFile(app.cmd_line_pgm_fname,app.flow_cfg)) != kOkRC )
     {
       rc = cwLogError(rc,"Parsing failed on the cfg. file '%s'.",argv[1]);
       goto errLabel;
@@ -348,6 +531,10 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
       goto errLabel;
     }
 
+    // get the fourth cmd line arg (pgm label of the program to run from the cfg file in arg[2])
+    if( argc >= 4 )
+      app.cmd_line_pgm_label = argv[3];
+    
   }
 
 errLabel:
@@ -365,7 +552,6 @@ rc_t _io_main( app_t& app )
     goto errLabel;    
   }
 
-  
   // execute the IO framework
   while( !io::isShuttingDown(app.ioH))
   {
@@ -402,7 +588,7 @@ void _test_stub( app_t& app )
 int main( int argc, char* argv[] )
 {
   rc_t  rc  = kOkRC;
-  app_t app = {};
+  app_t app = { .pgm_preset_idx=kInvalidIdx }; // all zero except ...
   bool exec_complete_fl = false;
   
   cw::log::createGlobal();
@@ -412,7 +598,7 @@ int main( int argc, char* argv[] )
   if((rc= _parse_main_cfg(app, argc, argv )) != kOkRC )
     goto errLabel;
 
-  switch( app.appSelId )
+  switch( app.cmd_line_action_id )
   {
     case kTestSelId:
       _run_test_suite(argc-2, (const char**)(argv + 2));
@@ -445,28 +631,34 @@ int main( int argc, char* argv[] )
     goto errLabel;
   }
 
-  switch( app.appSelId )
+  switch( app.cmd_line_action_id )
   {
     case kHwReportSelId:
       hardwareReport(app.ioH);
       goto errLabel;
       break;
 
+    case kExecSelId:
+      // the pgm to exec must have given
+      if( app.cmd_line_pgm_label == nullptr )
+      {
+        rc = cwLogError(kInvalidArgRC,"The label of the program to execute from %s was not given.",cwStringNullGuard(app.cmd_line_pgm_fname));
+        goto errLabel;
+      }
+      
+      // load the requested program - and execute it if it is in or non-GUI non-real-time mode
+      if((rc = _load_init_pgm_no_gui(app, app.cmd_line_pgm_label, exec_complete_fl )) != kOkRC )
+      {
+        goto errLabel;
+      }
+      break;
+
   }
 
-  // if we are here then then program 'exec' was requested
-  
-  if( app.cmd_line_pgm_label == nullptr )
-  {
-    rc = cwLogError(kInvalidArgRC,"The label of the program to execute from %s was not given.",cwStringNullGuard(app.cmd_line_cfg_fname));
-    goto errLabel;
-  }
-
-  // load the requested program - and execute it if it is in non-real-time mode
-  if((rc = _load_init_pgm(app, app.cmd_line_pgm_label, exec_complete_fl )) != kOkRC )
-    goto errLabel;
-  
-
+  // if we are here then then program 'ui' or 'exec' was requested
+  assert( app.cmd_line_action_id==kExecSelId || app.cmd_line_action_id==kUiSelId );
+    
+  // non-real-time programs will have already executed
   if( !exec_complete_fl )
     _io_main(app);
 
