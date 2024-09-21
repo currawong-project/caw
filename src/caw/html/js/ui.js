@@ -1072,6 +1072,25 @@ function ui_destroy( d )
 	ele.parentElement.removeChild( ele )
 }
 
+// Remove all children from the selected element
+function ui_empty( d )
+{
+    var ele = dom_id_to_ele(d.uuId.toString())
+
+    if( ele == null )
+	console.log("ele to empty not found");
+    
+    if( ele != null)
+    {
+	let i = 0;
+	let n = ele.children.length;
+	for(i=0; i<n; ++i)
+	{
+	    ele.removeChild(ele.children[0])
+	}
+    }
+}
+
 function ui_attach( d )
 {
     console.log("ATTACH");
@@ -1102,6 +1121,10 @@ function _ws_on_msg( d )
 	ui_destroy( d )
 	break
 
+	case 'empty':
+	ui_empty(d)
+	break
+		
 	case 'value':
 	ui_set_value( d )
 	break;
@@ -1113,7 +1136,7 @@ function _ws_on_msg( d )
 	case 'attach':
 	ui_attach(d)
 	break;
-	
+
 	default:
 	ui_error("Unknown UI operation. " + d.op )
     }
