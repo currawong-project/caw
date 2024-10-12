@@ -1,5 +1,26 @@
 
 
+.netPanel {
+
+    border: 1px solid Red;
+
+}
+
+.procPanel {
+    border: 1px solid Blue;
+    padding: 10px 10px;
+}
+
+.chanPanel {
+    border: 1px solid Yellow;
+}
+
+.varPanel {
+    border: 1px solid Green;
+}
+
+
+
 .fragList {
     border: 1px solid LightSteelBlue;
     width: 1000px;
