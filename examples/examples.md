@@ -901,8 +901,9 @@ user_defined_proc_12 : {
 }
 ```
 
+### Example 13: Global Variables
 
-
+See the sampler wavetable.
 
 
 
