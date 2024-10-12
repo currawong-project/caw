@@ -65,7 +65,7 @@ include src/libcw/Makefile.am
 #lib_LTLIBRARIES  += libcw.la 
 #include_HEADERS  += $(libcwHDR)
 
-src_caw_caw_SOURCES   =  $(libcwHDR) $(libcwSRC) src/caw/main.cpp 
+src_caw_caw_SOURCES   =  $(libcwHDR) $(libcwSRC) src/caw/main.cpp  src/caw/cawUi.cpp
 
 # 1) autoconfig manual recommends setting direct referenes to non-3rd party libraries rather than using -L and -l
 # 2) -ldl is required for dlopen(),dlclose() ...
