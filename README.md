@@ -18,7 +18,7 @@ sudo apt install autoconf libtool fftw-dev libwebsockets-dev libatlas-base-dev l
 
 ## Build
 
-Construct the project
+Get the project code
 ```
 cd ~/src
 git clone http://gitea.larke.org/kevin/caw.git
