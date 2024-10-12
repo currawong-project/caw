@@ -382,7 +382,8 @@ function ui_create_select( parent_ele, d )
 {
     var ele = ui_create_ctl( parent_ele, "select", d.title, d, "uiSelect" );
     ele.onchange = function() { ui_on_select(this) }
-
+    ele.onclick  = function() { ui_on_select(this) }
+    
     if( !d.hasOwnProperty('value') )
     {
 	ui_send_echo(ele)
@@ -576,6 +577,26 @@ function ui_set_number_value( ele, value )
 
 }
 
+function ui_set_title( ele, d )
+{
+    if( ele.tagName.toLowerCase() == "button" )
+	ele.innerHTML = d.value;
+    else
+    {
+	// most controls will have a sibling element of type 'label'
+	var label_eles = ele.parentNode.getElementsByTagName("label");
+	
+	if( label_eles != null && label_eles.length > 0 )
+	{
+	    label_eles[0].innerHTML = d.value
+	}
+	else
+	{
+	    ui_error("set_title() target element not found.");
+	}
+    }    
+}
+
 function ui_set_number_range( ele, d )
 {
     _ui_set_number_range(ele,d)
@@ -740,10 +761,9 @@ function ui_create_log( parent_ele, d )
     return log_ele
 }
 
-function ui_create_list( parent_ele, d )
+function ui_create_list( parent_ele, d, class_label )
 {
-    //console.log(d)
-    var list_ele  = ui_create_ctl( parent_ele, "div", d.title, d, "uiList" )
+    var list_ele  = ui_create_ctl( parent_ele, "div", d.title, d, class_label )
     
     return list_ele
 }
@@ -923,6 +943,10 @@ function ui_set( d )
     {
 	switch( d.type )
 	{
+	    case "title":
+	    ui_set_title(ele,d);
+	    break;
+	    
 	    case "number_range":
 	    ui_set_number_range(ele, d)
 	    break;
@@ -1045,8 +1069,12 @@ function ui_create( d )
 	    ele = ui_create_log( parent_ele, d );
 	    break;
 
-	    case "list":
-	    ele = ui_create_list( parent_ele, d );
+	    case "vlist":
+	    ele = ui_create_list( parent_ele, d, "uiList" );
+	    break;
+
+	    case "hlist":
+	    ele = ui_create_list( parent_ele, d, "uiHList" );
 	    break;
 	    
 	    default:
