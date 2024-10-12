@@ -9,12 +9,16 @@
 #include "cwIo.h"
 #include "cwVectOps.h"
 
+#include "cwFlowDecl.h"
 #include "cwIoFlowCtl.h"
 
+#include "cawUiDecl.h"
+#include "cawUi.h"
 
 #include "cwTest.h"
 
 using namespace cw;
+using namespace caw::ui;
 
 enum {
   kUiSelId,
@@ -22,8 +26,9 @@ enum {
   kTestSelId,
   kHwReportSelId,
   kTestStubSelId,
-  kHelpSelId
+  kHelpSelId,
 };
+
 
 idLabelPair_t appSelA[] = {
   { kUiSelId,       "ui" },
@@ -32,6 +37,7 @@ idLabelPair_t appSelA[] = {
   { kHwReportSelId, "hw_report" },
   { kTestStubSelId, "test_stub" },
   { kHelpSelId,     "help" },
+  
   { kInvalidId, nullptr }
 };
 
@@ -50,29 +56,9 @@ typedef struct app_str
   
   io::handle_t          ioH;
   io_flow_ctl::handle_t ioFlowH;
+  caw::ui::handle_t     uiH;
 
 } app_t;
-
-enum
-{
-  kPanelDivId,   
-  kQuitBtnId,    
-  kIoReportBtnId,
-  kNetPrintBtnId,
-  kReportBtnId,  
-  kLatencyBtnId, 
-  kValueNumbId,
-
-  kPgmSelId,
-  kPgmPresetSelId,
-  kRunCheckId,
-
-
-  kPgmBaseSelId,
-  kPgmMaxSelId = kPgmBaseSelId + 1000,
-  kPgmPresetBaseSelId,
-  kPgmPresetMaxSelId = kPgmPresetBaseSelId + 1000
-};
 
 ui::appIdMap_t  appIdMapA[] = {
   
@@ -83,11 +69,29 @@ ui::appIdMap_t  appIdMapA[] = {
   { kPanelDivId,     kReportBtnId,    "reportBtnId" },
   { kPanelDivId,     kLatencyBtnId,   "latencyBtnId" },
   
-  { kPanelDivId,     kValueNumbId,    "valueNumbId" },
-  
   { kPanelDivId,     kPgmSelId,       "pgmSelId" },
   { kPanelDivId,     kPgmPresetSelId, "pgmPresetSelId" },
-  { kPanelDivId,     kRunCheckId,     "runCheckId" }
+  { kPanelDivId,     kPgmLoadBtnId,   "pgmLoadBtnId" },
+  { kPanelDivId,     kRunCheckId,     "runCheckId" },
+
+  { kPanelDivId,     kRootNetPanelId, "rootNetPanelId" },
+
+  { kRootNetPanelId, kNetPanelId,    "netPanelId" },
+  
+  { kNetPanelId,     kProcListId,    "procListId" },
+  { kProcListId,     kProcPanelId,   "procPanelId" },
+
+  { kProcPanelId,    kProcInstLabelId,   "procInstLabel" },
+  { kProcPanelId,    kProcInstSfxId,     "procInstSfxId" },
+  { kProcPanelId,    kChanListId,        "chanListId" },
+
+  { kChanListId,     kChanPanelId,   "chanPanelId" },
+
+  { kChanPanelId,    kVarListId,     "varListId" },
+  { kVarListId,      kVarPanelId,    "varPanelId" },
+
+  { kVarPanelId,    kWidgetListId,  "widgetListId" },
+
 };
 
 const unsigned appIdMapN = sizeof(appIdMapA)/sizeof(appIdMapA[0]);
@@ -159,7 +163,7 @@ rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
 
   unsigned pgm_idx          = kInvalidIdx;
   unsigned pgmPresetSelUuId = io::uiFindElementUuId( app->ioH, kPgmPresetSelId );
-  unsigned runCheckUuId     = io::uiFindElementUuId( app->ioH, kRunCheckId );
+  unsigned pgmLoadBtnUuId   = io::uiFindElementUuId( app->ioH, kPgmLoadBtnId );
   unsigned preset_cnt       = 0;
 
   if( !(kPgmBaseSelId <= pgmSelOptId && pgmSelOptId <= kPgmMaxSelId ) )
@@ -175,8 +179,8 @@ rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
     goto errLabel;
   }
 
-  uiSetEnable( app->ioH, pgmPresetSelUuId, false );  // Disable the preset menu and run checkbox in anticipation of error.
-  uiSetEnable( app->ioH, runCheckUuId, false );      //
+  uiSetEnable( app->ioH, pgmPresetSelUuId, false );  // Disable the preset menu and load btn in anticipation of error.
+  uiSetEnable( app->ioH, pgmLoadBtnUuId,   false );  //
   app->pgm_preset_idx = kInvalidIdx;                 // The preset menu is empty and so there can be no valid preset selected.
   pgm_idx             = pgmSelOptId - kPgmBaseSelId; // Calc the ioFlowCtl preset index of the selected preset.
 
@@ -206,7 +210,7 @@ rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
     app->pgm_preset_idx = 0; // since it is showing - select the first preset as the default preset
   }
   
-  uiSetEnable( app->ioH, runCheckUuId, true );
+  uiSetEnable( app->ioH, pgmLoadBtnUuId, true );
   
 errLabel:
   return rc;
@@ -230,27 +234,47 @@ errLabel:
   return rc;
 }
 
+rc_t _on_pgm_load(app_t* app )
+{
+  rc_t rc = kOkRC;
+  
+  if( !program_is_initialized( app->ioFlowH) )
+  {
+    const flow::ui_net_t* ui_net = nullptr;
+  
+    if((rc = program_initialize(app->ioFlowH, app->pgm_preset_idx )) != kOkRC )
+    {
+      rc = cwLogError(rc,"Network initialization failed.");
+      goto errLabel;
+    }
+
+    if((ui_net = program_ui_net(app->ioFlowH)) == nullptr )
+    {
+      rc = cwLogError(rc,"Network UI description initialization failed.");
+      goto errLabel;      
+    }
+
+    if((rc = caw::ui::create(app->uiH, app->ioH, app->ioFlowH, ui_net )) != kOkRC )
+    {
+      rc = cwLogError(rc,"Network UI create failed.");
+      goto errLabel;            
+    }
+
+    uiSetEnable(app->ioH, io::uiFindElementUuId( app->ioH, kRunCheckId ), true );
+
+  }
+  
+errLabel:
+
+  return rc;
+}
+
 rc_t _on_pgm_run( app_t* app, bool run_check_fl )
 {
   rc_t rc = kOkRC;
 
-  printf("run:%i %i\n",run_check_fl,app->run_fl);
-  
-  if( run_check_fl == app->run_fl )
-    return rc;
-  
-  if( run_check_fl && !program_is_initialized( app->ioFlowH) )
-  {
-    if((rc = program_initialize(app->ioFlowH, app->pgm_preset_idx )) != kOkRC )
-    {
-      rc = cwLogError(rc,"Program initialization failed.");
-      goto errLabel;
-    }
-  }
-
   app->run_fl = run_check_fl;
 
-errLabel:
   return rc;
 }
 
@@ -279,9 +303,40 @@ errLabel:
   return rc;
 }
 
+template< typename T >
+rc_t _on_variable_value( app_t* app, const io::ui_msg_t& m, T value )
+{
+  rc_t            rc     = kOkRC;
+  flow::ui_var_t* ui_var = nullptr;
+  unsigned        byteN  = sizeof(ui_var);
+  
+  if((rc = uiGetBlob(app->ioH,m.uuId, &ui_var,byteN)) != kOkRC )
+  {
+    rc = cwLogError(rc,"UI Blob access failed.");
+    goto errLabel;
+  }
+  
+  assert( byteN == sizeof(ui_var));
+
+  if((rc = set_variable_value( app->ioFlowH, ui_var, value )) != kOkRC )
+  {
+    rc = cwLogError(rc,"Unable to access variable value.");
+    goto errLabel;
+  }
+  
+errLabel:
+  if( rc != kOkRC )
+  {
+    rc = cwLogError(rc,"Echo failed for '%s:%i'-'%s:%i'.",cwStringNullGuard(ui_var->ui_proc->label),ui_var->ui_proc->label_sfx_id,cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+  }
+  
+  return rc;
+}
 
 rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
 {
+  rc_t rc = kOkRC;
+  
   switch( m.appId )
   {
     case kQuitBtnId:
@@ -303,11 +358,6 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       latency_measure_setup(app->ioH);
       break;
       
-    case kValueNumbId:
-      //app->value = m.value->u.u;
-      //cwLogInfo("Setting value:%i",app->value);
-      break;
-
     case kPgmSelId:
       _on_pgm_select(app,m.value->u.u);
       break;
@@ -315,27 +365,112 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
     case kPgmPresetSelId:
       _on_pgm_preset_select(app,m.value->u.u);
       break;
+
+    case kPgmLoadBtnId:
+      _on_pgm_load(app);
+      break;
       
     case kRunCheckId:
+      io::uiSetTitle(app->ioH,m.uuId,m.value->u.b ? "Off" : "On" );
       _on_pgm_run(app,m.value->u.b);
       break;
-    
+
+    case kCheckWidgetId:
+      rc = _on_variable_value(app,m,m.value->u.b);
+      break;
+      
+    case kIntWidgetId:
+      rc = _on_variable_value(app,m,(int)m.value->u.d);
+      break;
+
+    case kUIntWidgetId:
+      rc = _on_variable_value(app,m,(unsigned)m.value->u.d);
+      break;
+      
+    case kFloatWidgetId:
+      rc = _on_variable_value(app,m,(float)m.value->u.d);
+      break;
+      
+    case kDoubleWidgetId:
+      rc = _on_variable_value(app,m,m.value->u.d);
+      break;
+
+    case kStringWidgetId:
+      rc = _on_variable_value(app,m,m.value->u.s);
+      break;
   }
-  return kOkRC;
+  return rc;
+}
+
+template< typename T >
+rc_t _on_variable_echo( app_t* app, const io::ui_msg_t& m )
+{
+  rc_t            rc     = kOkRC;
+  T               value  = 0;
+  flow::ui_var_t* ui_var = nullptr;
+  unsigned        byteN  = sizeof(ui_var);
+  
+  if((rc = uiGetBlob(app->ioH,m.uuId, &ui_var,byteN)) != kOkRC )
+  {
+    rc = cwLogError(rc,"UI Blob access failed.");
+    goto errLabel;
+  }
+  
+  assert( byteN == sizeof(ui_var));
+
+  if((rc = get_variable_value( app->ioFlowH, ui_var, value )) != kOkRC )
+  {
+    rc = cwLogError(rc,"Unable to access variable value.");
+    goto errLabel;
+  }
+
+  if((rc = uiSendValue( app->ioH, m.uuId, value )) != kOkRC )
+  {
+    rc = cwLogError(rc,"Send value to UI failed.");
+    goto errLabel;
+  }
+  
+errLabel:
+  if( rc != kOkRC )
+  {
+    rc = cwLogError(rc,"Echo failed for '%s:%i'-'%s:%i'.",cwStringNullGuard(ui_var->ui_proc->label),ui_var->ui_proc->label_sfx_id,cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+  }
+  
+  return rc;
 }
 
 rc_t _ui_echo_callback(app_t* app, const io::ui_msg_t& m )
 {
+  rc_t rc = kOkRC;
+  
   switch( m.appId )
   {
-    case kValueNumbId:
-      {
-        //uiSendValue( app->ioH, io::uiFindElementUuId( app->ioH, kValueNumbId ), app->value );
-      }
+    case kCheckWidgetId:
+      rc = _on_variable_echo<bool>(app,m);
       break;
-    
+      
+    case kIntWidgetId:
+      rc = _on_variable_echo<int>(app,m);
+      break;
+      
+    case kUIntWidgetId:
+      rc = _on_variable_echo<unsigned>(app,m);
+      break;
+      
+    case kFloatWidgetId:
+      rc = _on_variable_echo<float>(app,m);
+      break;
+
+    case kDoubleWidgetId:
+      rc = _on_variable_echo<double>(app,m);
+      break;
+      
+    case kStringWidgetId:
+      rc = _on_variable_echo<const char*>(app,m);
+      break;
   }
-  return kOkRC;
+  
+  return rc;
 }
 
 rc_t _ui_callback( app_t* app, const io::ui_msg_t& m )
@@ -664,6 +799,11 @@ int main( int argc, char* argv[] )
 
 
 errLabel:
+
+  if( app.uiH.isValid() )
+    if((rc = caw::ui::destroy(app.uiH)) != kOkRC )
+      rc = cwLogError(rc,"UI destroy failed.");
+  
   if((rc = destroy(app.ioFlowH)) != kOkRC )
     rc = cwLogError(rc,"IO Flow destroy failed.");
   
