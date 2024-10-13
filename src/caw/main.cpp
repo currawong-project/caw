@@ -82,12 +82,11 @@ ui::appIdMap_t  appIdMapA[] = {
   { kProcListId,     kProcPanelId,   "procPanelId" },
 
   { kProcPanelId,    kProcInstLabelId,   "procInstLabel" },
-  { kProcPanelId,    kProcInstSfxId,     "procInstSfxId" },
-  { kProcPanelId,    kChanListId,        "chanListId" },
+  { kProcPanelId,    kChanPanelId,       "chanPanelId" },
+  { kChanPanelId,    kChanListId,        "chanListId" },
 
-  { kChanListId,     kChanPanelId,   "chanPanelId" },
 
-  { kChanPanelId,    kVarListId,     "varListId" },
+  { kChanListId,     kVarListId,     "varListId" },
   { kVarListId,      kVarPanelId,    "varPanelId" },
 
   { kVarPanelId,    kWidgetListId,  "widgetListId" },
@@ -809,6 +808,9 @@ errLabel:
   
   if((rc = destroy(app.ioH)) != kOkRC )
     rc = cwLogError(rc,"IO destroy failed.");
+
+  if((rc = destroy(app.uiH)) != kOkRC )
+    rc = cwLogError(rc,"UI destroy failed.");
 
   if( app.io_cfg != nullptr )
     app.io_cfg->free();

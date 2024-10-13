@@ -58,7 +58,7 @@ namespace caw {
     rc_t _create_bool_widgets( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref )
     {
       rc_t rc = kOkRC;
-      if((rc = uiCreateCheck(p->ioH, uuid_ref, widgetListUuId, nullptr, kCheckWidgetId, kInvalidId, nullptr, ui_var->label )) != kOkRC )
+      if((rc = uiCreateCheck(p->ioH, uuid_ref, widgetListUuId, nullptr, kCheckWidgetId, kInvalidId, nullptr, nullptr )) != kOkRC )
       {
         rc = cwLogError(rc,"Check box widget create failed on '%s'.",cwStringNullGuard(ui_var->label));
       }
@@ -70,7 +70,7 @@ namespace caw {
     {
       rc_t rc;
       
-      if((rc = uiCreateNumb( p->ioH, uuid_ref, widgetListUuId, nullptr, appId, kInvalidId, nullptr, ui_var->label, min_val, max_val, step, dec_pl )) != kOkRC )
+      if((rc = uiCreateNumb( p->ioH, uuid_ref, widgetListUuId, nullptr, appId, kInvalidId, nullptr, nullptr, min_val, max_val, step, dec_pl )) != kOkRC )
       {
         rc = cwLogError(rc,"Integer widget create failed on '%s'.",cwStringNullGuard(ui_var->label));
         goto errLabel;
@@ -83,7 +83,7 @@ namespace caw {
     rc_t _create_string_widgets( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref )
     {
       rc_t rc = kOkRC;
-      if((rc = uiCreateStr( p->ioH, uuid_ref, widgetListUuId, nullptr, kStringWidgetId, kInvalidId, nullptr, ui_var->label )) != kOkRC )
+      if((rc = uiCreateStr( p->ioH, uuid_ref, widgetListUuId, nullptr, kStringWidgetId, kInvalidId, nullptr, nullptr )) != kOkRC )
       {
         rc = cwLogError(rc,"String widget create failed on '%s'.",cwStringNullGuard(ui_var->label));
         goto errLabel;        
@@ -93,6 +93,21 @@ namespace caw {
       return rc;
     }
 
+    rc_t _create_var_label( ui_t* p, unsigned parentListUuId, const flow::ui_var_t* ui_var, const char* label, unsigned var_idx )
+    {
+      rc_t rc;
+      unsigned uuId;
+      if((rc = uiCreateStrDisplay( p->ioH, uuId, parentListUuId, nullptr, kInvalidId, kInvalidId, nullptr, label )) != kOkRC )
+      {
+        rc = cwLogError(rc,"Label widget create failed on '%s'.",cwStringNullGuard(ui_var->label));
+        goto errLabel;        
+        
+      }
+
+    errLabel:
+      return rc;
+      
+    }
     
     rc_t _create_var_ui( ui_t* p, unsigned parentListUuId, const flow::ui_var_t* ui_var, unsigned var_idx )
     {
@@ -178,11 +193,19 @@ namespace caw {
       }
 
       if( widget_uuId != kInvalidId )
+      {
         uiSetBlob(p->ioH,widget_uuId, &ui_var, sizeof(&ui_var));
+
+        // if this is a 'init' variable then disable it
+        if( ui_var->desc_flags & flow::kInitVarDescFl )
+          uiClearEnable(p->ioH, widget_uuId );
+
+        
+      }
 
     errLabel:
       if(rc != kOkRC )
-        rc = cwLogError(rc,"Processor UI creation failed on %s:%i.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+        rc = cwLogError(rc,"Variable UI creation failed on %s:%i.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
       
       return rc;
       
@@ -202,66 +225,97 @@ namespace caw {
     
     rc_t _create_proc_ui( ui_t* p, unsigned parentListUuId, const flow::ui_proc_t* ui_proc, unsigned proc_idx )
     {
-      rc_t     rc            = kOkRC;
-      unsigned procPanelUuId = kInvalidId;
-      unsigned chanListUuId  = kInvalidId;
-      unsigned chN           = _calc_max_chan_count(ui_proc);
+      rc_t           rc              = kOkRC;
+      unsigned       procPanelUuId   = kInvalidId;
+      unsigned       chanPanelUuId   = kInvalidId;
+      unsigned       chanListUuId    = kInvalidId;
+      unsigned       chN             = _calc_max_chan_count(ui_proc);
+      const unsigned label_buf_charN = 127;
+      char           label_buf[ label_buf_charN+1 ];
       
       if((rc = uiCreateFromRsrc(   p->ioH, "proc", parentListUuId, proc_idx )) != kOkRC )
       {
         goto errLabel;
       }
 
-      procPanelUuId =  uiFindElementUuId( p->ioH, parentListUuId, kProcPanelId,   proc_idx );
-      chanListUuId   =  uiFindElementUuId( p->ioH, procPanelUuId, kChanListId,   kInvalidId );
-
+      procPanelUuId  =  uiFindElementUuId( p->ioH, parentListUuId, kProcPanelId,   proc_idx );
+      chanPanelUuId  =  uiFindElementUuId( p->ioH, procPanelUuId, kChanPanelId,   kInvalidId );
+      chanListUuId   =  uiFindElementUuId( p->ioH, chanPanelUuId, kChanListId,   kInvalidId );
       //printf("proc_idx: %i %i %i : chN:%i\n",proc_idx, parentListUuId, procPanelUuId,chN);
 
-      uiSendValue( p->ioH, uiFindElementUuId(p->ioH, procPanelUuId, kProcInstLabelId, kInvalidId), ui_proc->label );
-      uiSendValue( p->ioH, uiFindElementUuId(p->ioH, procPanelUuId, kProcInstSfxId,   kInvalidId), ui_proc->label_sfx_id );
+      snprintf(label_buf,label_buf_charN,"%s:%i",ui_proc->label,ui_proc->label_sfx_id);
+      
+      uiSendValue( p->ioH, uiFindElementUuId(p->ioH, procPanelUuId, kProcInstLabelId, kInvalidId), label_buf );
 
 
-      // for each channel
-      for(unsigned ui_ch_idx=0; ui_ch_idx<chN; ++ui_ch_idx)
+      // for each channel (add one to the channel count to account for the leading 'label' column)
+      for(unsigned ui_ch_idx=0; ui_ch_idx<chN+1; ++ui_ch_idx)
       {
-        unsigned chanPanelUuId = kInvalidId;
         unsigned varListUuId   = kInvalidIdx;
         
-        // create a chan. panel
+        // add a varList to the chanList
         if((rc = uiCreateFromRsrc( p->ioH, "chan", chanListUuId, ui_ch_idx )) != kOkRC )
         {
           goto errLabel;
         }
       
-        chanPanelUuId = uiFindElementUuId(p->ioH, chanListUuId, kChanPanelId, ui_ch_idx);
-        varListUuId   = uiFindElementUuId(p->ioH, chanPanelUuId, kVarListId, kInvalidIdx );
-      
+        varListUuId = uiFindElementUuId(p->ioH, chanListUuId, kVarListId, ui_ch_idx );
+
+        // for each var
         for(unsigned j=0; j<ui_proc->varN; ++j)
         {
-          const flow::ui_var_t* ui_var = ui_proc->varA + j;          
+          const flow::ui_var_t* ui_var = ui_proc->varA + j;
 
+          // only create controls for certain value types
+          if( !(ui_var->value_tid & (flow::kBoolTFl | flow::kIntTFl | flow::kUIntTFl | flow::kFloatTFl | flow::kDoubleTFl | flow::kStringTFl )))
+            continue;
           
-          // if this variable has no channelized duplicates and this is the 'any' ch. var
-          if( ui_var->ch_idx == flow::kAnyChIdx && ui_var->ch_cnt==flow::kAnyChIdx && ui_ch_idx==0 )
+
+          if( ui_ch_idx == 0 )
           {
+            if( ui_var->ch_idx == flow::kAnyChIdx )
+            {
+              snprintf(label_buf,label_buf_charN,"%s:%i",ui_var->label,ui_var->label_sfx_id);
+              if((rc = _create_var_label(p,varListUuId, ui_var, label_buf, j)) != kOkRC )
+              {
+                goto errLabel;
+              }
+            }
+            
           }
           else
           {
-            // if this is a channelized variable and ui_ch_idx is the var's channel
-            if( ui_var->ch_idx != flow::kAnyChIdx && ui_var->ch_idx == ui_ch_idx )
+
+            // subtract one from ui_ch_idx to account for the leading label column with is associated with ui_ch_idx==0
+            unsigned uiChIdx = ui_ch_idx - 1;
+            bool create_fl = false;
+            
+            // if this is the 'any' ch. var
+            if( ui_var->ch_idx == flow::kAnyChIdx  )
             {
+              // if this 'any' ch. var has no other channels
+              if( ui_var->ch_cnt == 0 )
+              {
+                create_fl = true; // always create a control or a blank var
+                
+                // if the current ch. == 0 then create then control ...
+                if( ui_var->ch_cnt==0 && uiChIdx!=0 )
+                  ui_var = nullptr; // ... otherwise create a blank 
+              }
+                
             }
-            else
+            else // otherwise create the var if it is on chan 'uiChIdx'
             {
-              //printf("proc_idx:%i %s : %i %i\n",proc_idx,ui_var->label,ui_var->ch_idx,ui_var->ch_cnt);
-              ui_var = nullptr; // insert a blank var panel
+              create_fl = ui_var->ch_idx == uiChIdx;
             }
-          }
-          
-          
-          if((rc = _create_var_ui(p, varListUuId, ui_var, j)) != kOkRC )
-          {
-            goto errLabel;
+
+            if( create_fl )
+            {              
+              if((rc = _create_var_ui(p, varListUuId, ui_var, j)) != kOkRC )
+              {
+                goto errLabel;
+              }
+            }
           }
         }
       }
@@ -335,7 +389,11 @@ cw::rc_t caw::ui::create( handle_t&             hRef,
       rc = cwLogError(rc,"UI create failed.");
       goto errLabel;
     }
+
+    hRef.set(p);
   }
+
+  
 
 errLabel:  
   return rc;

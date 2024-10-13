@@ -23,7 +23,6 @@ namespace caw {
 
       kProcPanelId,
       kProcInstLabelId,
-      kProcInstSfxId,
       kChanListId,
       
       kChanPanelId,
