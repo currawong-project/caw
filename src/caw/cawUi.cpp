@@ -60,7 +60,7 @@ namespace caw {
       rc_t rc = kOkRC;
       if((rc = uiCreateCheck(p->ioH, uuid_ref, widgetListUuId, nullptr, kCheckWidgetId, kInvalidId, nullptr, nullptr )) != kOkRC )
       {
-        rc = cwLogError(rc,"Check box widget create failed on '%s'.",cwStringNullGuard(ui_var->label));
+        rc = cwLogError(rc,"Check box widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
       }
     
       return rc;
@@ -72,7 +72,7 @@ namespace caw {
       
       if((rc = uiCreateNumb( p->ioH, uuid_ref, widgetListUuId, nullptr, appId, kInvalidId, nullptr, nullptr, min_val, max_val, step, dec_pl )) != kOkRC )
       {
-        rc = cwLogError(rc,"Integer widget create failed on '%s'.",cwStringNullGuard(ui_var->label));
+        rc = cwLogError(rc,"Integer widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
         goto errLabel;
       }
 
@@ -80,12 +80,12 @@ namespace caw {
       return rc;
     }
 
-    rc_t _create_string_widgets( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref )
+    rc_t _create_string_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref )
     {
       rc_t rc = kOkRC;
       if((rc = uiCreateStr( p->ioH, uuid_ref, widgetListUuId, nullptr, kStringWidgetId, kInvalidId, nullptr, nullptr )) != kOkRC )
       {
-        rc = cwLogError(rc,"String widget create failed on '%s'.",cwStringNullGuard(ui_var->label));
+        rc = cwLogError(rc,"String widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
         goto errLabel;        
       }
 
@@ -93,6 +93,20 @@ namespace caw {
       return rc;
     }
 
+    rc_t _create_meter_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref, double min_val, double max_val )
+    {
+      rc_t rc = kOkRC;
+
+      if((rc = uiCreateProg(p->ioH, uuid_ref, widgetListUuId, nullptr, kMeterWidgetId, kInvalidId, nullptr, nullptr, min_val, max_val )) != kOkRC )
+      {
+        rc = cwLogError(rc,"Meter widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+        goto errLabel;
+      }
+
+    errLabel:
+      return rc;
+    }
+    
     rc_t _create_var_label( ui_t* p, unsigned parentListUuId, const flow::ui_var_t* ui_var, const char* label, unsigned var_idx )
     {
       rc_t rc;
@@ -104,10 +118,79 @@ namespace caw {
         
       }
 
+
+    errLabel:
+      return rc;      
+    }
+
+    rc_t _get_widget_type_id( const flow::ui_var_t* ui_var, unsigned& widget_type_id_ref )
+    {
+      rc_t            rc                = kOkRC;
+      unsigned        value_type_flag   = ui_var->value_tid & flow::kTypeMask;
+      const object_t* cfg               = nullptr;
+      const object_t* ui_cfg            = nullptr;
+      const char*     widget_type_label = nullptr;
+      
+      idLabelPair_t   typeA[] = {
+        { kMeterWidgetId, "meter" },
+        { kInvalidId, nullptr }
+      };
+
+      widget_type_id_ref  = kInvalidId;
+      
+      switch( value_type_flag )
+      {
+        case flow::kBoolTFl:   widget_type_id_ref = kCheckWidgetId;  break;
+        case flow::kIntTFl:    widget_type_id_ref = kIntWidgetId;    break;
+        case flow::kUIntTFl:   widget_type_id_ref = kUIntWidgetId;   break;
+        case flow::kFloatTFl:  widget_type_id_ref = kFloatWidgetId;  break;
+        case flow::kDoubleTFl: widget_type_id_ref = kDoubleWidgetId; break;
+        case flow::kStringTFl: widget_type_id_ref = kStringWidgetId; break;          
+      }
+
+      // get the proc desc 'vars' dict.
+      if((rc = ui_var->ui_proc->proc->class_desc->cfg->getv_opt("vars",cfg)) != kOkRC )
+      {
+        rc = cwLogError(rc,"Error parsing proc desc. 'vars'.");
+        goto errLabel;
+      }
+
+      // locate this 'var' in the var-list
+      if((cfg = cfg->find(ui_var->label)) == nullptr )
+      {
+        rc = cwLogError(rc,"Error locating 'var' '%s' on proc desc.",ui_var->label);
+        goto errLabel;
+      }
+
+      // get the 'ui' record for this var
+      if((rc = cfg->getv_opt("ui",ui_cfg)) != kOkRC )
+      {
+        rc = cwLogError(rc,"Error parsing variable 'ui' cfg.");
+        goto errLabel;
+      }
+
+      // if a 'ui' record was found
+      if( ui_cfg != nullptr )
+      {
+        // get the type of this 'ui' widget
+        if((rc = ui_cfg->getv("type",widget_type_label)) != kOkRC )
+        {
+          rc = cwLogError(rc,"Error parsing variable 'ui' type cfg.");
+          goto errLabel;
+        }
+
+        // 
+        if((widget_type_id_ref = labelToId(typeA,widget_type_label,kInvalidId)) == kInvalidId )
+        {
+          rc = cwLogError(rc,"An unknown widget type '%s' was encountered.",widget_type_label);
+          goto errLabel;
+        }
+      }
+      
     errLabel:
       return rc;
-      
     }
+    
     
     rc_t _create_var_ui( ui_t* p, unsigned parentListUuId, const flow::ui_var_t* ui_var, unsigned var_idx )
     {
@@ -115,7 +198,7 @@ namespace caw {
       rc_t rc = kOkRC;
       unsigned widgetListUuId  = kInvalidId;
       unsigned varUuId         = kInvalidId;
-      unsigned value_type_flag = 0;
+      unsigned widget_type_id  = kInvalidId;
       unsigned widget_uuId     = kInvalidId;
       
       // insert the var panel
@@ -127,21 +210,26 @@ namespace caw {
       // if this is a blank panel 
       if( ui_var == nullptr )
         goto errLabel;
-        
-      value_type_flag = ui_var->value_tid & flow::kTypeMask;
+
+      // get the type of this widget
+      if((rc= _get_widget_type_id( ui_var, widget_type_id )) != kOkRC )
+      {
+        goto errLabel;
+      }
+
       
       varUuId        = uiFindElementUuId( p->ioH, parentListUuId, kVarPanelId, var_idx );
       widgetListUuId = uiFindElementUuId( p->ioH, varUuId, kWidgetListId, kInvalidId );
 
       //printf("%i %i %i\n",var_idx, varUuId,widgetListUuId);
       
-      switch( value_type_flag )
+      switch( widget_type_id )
       {
-        case flow::kBoolTFl:
+        case kCheckWidgetId:
           rc = _create_bool_widgets(p,widgetListUuId,ui_var,widget_uuId);
           break;
           
-        case flow::kIntTFl:
+        case kIntWidgetId:
           {
             int min_val = std::numeric_limits<int>::min();
             int max_val = std::numeric_limits<int>::max();
@@ -149,7 +237,7 @@ namespace caw {
           }
           break;          
           
-        case flow::kUIntTFl:
+        case kUIntWidgetId:
           {
             unsigned min_val = 0;
             unsigned max_val = std::numeric_limits<unsigned>::max();
@@ -157,7 +245,7 @@ namespace caw {
           }
           break;
 
-        case flow::kFloatTFl:
+        case kFloatWidgetId:
           {
             float min_val = std::numeric_limits<float>::min();
             float max_val = std::numeric_limits<float>::max();
@@ -165,7 +253,7 @@ namespace caw {
           }
           break;
           
-        case flow::kDoubleTFl:
+        case kDoubleWidgetId:
           {
             double min_val = std::numeric_limits<float>::min();
             double max_val = std::numeric_limits<float>::max();
@@ -173,12 +261,21 @@ namespace caw {
           }
           break;
 
-        case flow::kStringTFl:
-          rc = _create_string_widgets(p,widgetListUuId,ui_var,widget_uuId);
+        case kStringWidgetId:
+          rc = _create_string_widget(p,widgetListUuId,ui_var,widget_uuId);
+          break;
+
+        case kMeterWidgetId:
+          {
+            double min_val = -100.0;
+            double max_val = 0;
+            rc = _create_meter_widget(p,widgetListUuId,ui_var,widget_uuId,min_val,max_val);
+          }
           break;
 
         default:
           {
+            /*
             const char* type_label;
             if((type_label = flow::value_type_flag_to_label(value_type_flag)) != nullptr )
               cwLogWarning("No UI widgets for type:%s",type_label);
@@ -186,7 +283,7 @@ namespace caw {
             {
               cwLogError(kInvalidArgRC,"The value type flag: 0x%x is not known. No UI widget was created.",value_type_flag);
             }
-
+            */
             goto errLabel;
 
           }
@@ -199,6 +296,9 @@ namespace caw {
         // if this is a 'init' variable then disable it
         if( ui_var->desc_flags & flow::kInitVarDescFl )
           uiClearEnable(p->ioH, widget_uuId );
+
+        if((rc = set_variable_user_id( p->ioFlowH, ui_var, widget_uuId )) != kOkRC )
+          goto errLabel;
 
         
       }

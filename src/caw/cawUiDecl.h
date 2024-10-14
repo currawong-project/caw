@@ -37,7 +37,7 @@ namespace caw {
       kFloatWidgetId,
       kDoubleWidgetId,
       kStringWidgetId,
-      
+      kMeterWidgetId,
       
 
       kPgmBaseSelId,
