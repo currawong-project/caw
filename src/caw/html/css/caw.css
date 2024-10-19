@@ -1,8 +1,11 @@
 
+.netList {
+    border: 1px solid red;
+}
 
 .netPanel {
 
-    border: 1px solid Red;
+    border: 1px solid blue;
 
 }
 
@@ -35,8 +38,10 @@
 }
 
 .varPanel {
-    border: 1px solid Green;
     height: 20px;
 }
 
 
+.uiList {
+    height: 100%;
+}

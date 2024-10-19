@@ -75,13 +75,16 @@ ui::appIdMap_t  appIdMapA[] = {
   { kPanelDivId,     kRunCheckId,     "runCheckId" },
 
   { kPanelDivId,     kRootNetPanelId, "rootNetPanelId" },
+  { kRootNetPanelId, kNetListId,      "netListId" },
 
-  { kRootNetPanelId, kNetPanelId,    "netPanelId" },
-  
+  { kNetListId,      kNetPanelId,    "netPanelId" },
+
+  { kNetPanelId,     kNetTitleId,    "netTitleId" },
   { kNetPanelId,     kProcListId,    "procListId" },
   { kProcListId,     kProcPanelId,   "procPanelId" },
 
   { kProcPanelId,    kProcInstLabelId,   "procInstLabel" },
+  { kProcPanelId,    kProcPresetSelId,   "procPresetSelId" },
   { kProcPanelId,    kChanPanelId,       "chanPanelId" },
   { kChanPanelId,    kChanListId,        "chanListId" },
 

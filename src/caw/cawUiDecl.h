@@ -17,12 +17,16 @@ namespace caw {
       kRunCheckId,
     
       kRootNetPanelId,
+      kNetListId,
       
       kNetPanelId,
+      kNetTitleId,
       kProcListId,
 
       kProcPanelId,
       kProcInstLabelId,
+      kProcPresetSelId,
+      kProcPresetOptId,
       kChanListId,
       
       kChanPanelId,

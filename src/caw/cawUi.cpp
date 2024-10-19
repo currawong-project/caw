@@ -28,19 +28,13 @@ namespace caw {
 
   namespace ui  {
 
-
-    typedef struct ui_var_str
-    {
-      
-    } ui_var_t;
-     
     
     typedef struct ui_str
     {
       io::handle_t              ioH;
       io_flow_ctl::handle_t     ioFlowH;
       const flow::ui_net_t*     ui_net;
-      
+      unsigned                  ui_net_idx;
       
     } ui_t;
 
@@ -48,9 +42,20 @@ namespace caw {
     ui_t* _handleToPtr( handle_t h )
     { return handleToPtr<handle_t,ui_t>(h); }
 
-    rc_t _destroy( ui_t* p )
+    rc_t _destroy( ui_t*& p )
     {
       rc_t rc = kOkRC;
+
+      if( p != nullptr && p->ioH.isValid() )
+      {
+        unsigned netPanelUuId   = io::uiFindElementUuId( p->ioH, kRootNetPanelId );
+        unsigned netListUuId    = io::uiFindElementUuId( p->ioH, netPanelUuId, kNetListId, kInvalidId );
+
+        if( netListUuId != kInvalidId )
+          uiEmptyParent( p->ioH, netListUuId);
+
+      }
+      
       mem::release(p);
       return rc;
     }
@@ -118,6 +123,10 @@ namespace caw {
         
       }
 
+      // BUG: This currently does nothing because 'disp_str' elements do not change state when they are disabled.
+      if( (ui_var->desc_flags & flow::kInitVarDescFl) || ui_var->has_source_fl)
+        uiClearEnable(p->ioH, uuId );
+      
 
     errLabel:
       return rc;      
@@ -293,8 +302,9 @@ namespace caw {
       {
         uiSetBlob(p->ioH,widget_uuId, &ui_var, sizeof(&ui_var));
 
-        // if this is a 'init' variable then disable it
-        if( ui_var->desc_flags & flow::kInitVarDescFl )
+        // if this is a 'init' variable or connected to a source variable then disable it
+        // (The UI should not be able to change the value of a var. that is being set by a source in the network.)
+        if( (ui_var->desc_flags & flow::kInitVarDescFl) || ui_var->has_source_fl)
           uiClearEnable(p->ioH, widget_uuId );
 
         if((rc = set_variable_user_id( p->ioFlowH, ui_var, widget_uuId )) != kOkRC )
@@ -322,32 +332,40 @@ namespace caw {
 
       return n==0 ? 1 : n;
     }
-    
-    rc_t _create_proc_ui( ui_t* p, unsigned parentListUuId, const flow::ui_proc_t* ui_proc, unsigned proc_idx )
+
+    rc_t _load_proc_presets(ui_t* p, const flow::ui_proc_t* ui_proc, unsigned procPanelUuId)
+    {
+      rc_t rc = kOkRC;
+
+      unsigned selUuId =  uiFindElementUuId( p->ioH, procPanelUuId, kProcPresetSelId, kInvalidId );
+
+      if( ui_proc->desc->presetN == 0 )
+      {
+        uiClearEnable(p->ioH, selUuId );
+        uiClearVisible(p->ioH, selUuId  );        
+      }
+        
+      for(unsigned i=0; i<ui_proc->desc->presetN; ++i)
+      {
+        unsigned uuId;
+        if((rc = uiCreateOption(p->ioH, uuId, selUuId, nullptr, kProcPresetOptId, i, nullptr, ui_proc->desc->presetA[i].label )) != kOkRC )
+        {
+        }
+
+      }
+      
+      
+      return rc;
+    }
+
+    rc_t _create_var_list( ui_t* p, unsigned chanListUuId, const flow::ui_proc_t* ui_proc )
     {
       rc_t           rc              = kOkRC;
-      unsigned       procPanelUuId   = kInvalidId;
-      unsigned       chanPanelUuId   = kInvalidId;
-      unsigned       chanListUuId    = kInvalidId;
       unsigned       chN             = _calc_max_chan_count(ui_proc);
       const unsigned label_buf_charN = 127;
       char           label_buf[ label_buf_charN+1 ];
       
-      if((rc = uiCreateFromRsrc(   p->ioH, "proc", parentListUuId, proc_idx )) != kOkRC )
-      {
-        goto errLabel;
-      }
-
-      procPanelUuId  =  uiFindElementUuId( p->ioH, parentListUuId, kProcPanelId,   proc_idx );
-      chanPanelUuId  =  uiFindElementUuId( p->ioH, procPanelUuId, kChanPanelId,   kInvalidId );
-      chanListUuId   =  uiFindElementUuId( p->ioH, chanPanelUuId, kChanListId,   kInvalidId );
-      //printf("proc_idx: %i %i %i : chN:%i\n",proc_idx, parentListUuId, procPanelUuId,chN);
-
-      snprintf(label_buf,label_buf_charN,"%s:%i",ui_proc->label,ui_proc->label_sfx_id);
       
-      uiSendValue( p->ioH, uiFindElementUuId(p->ioH, procPanelUuId, kProcInstLabelId, kInvalidId), label_buf );
-
-
       // for each channel (add one to the channel count to account for the leading 'label' column)
       for(unsigned ui_ch_idx=0; ui_ch_idx<chN+1; ++ui_ch_idx)
       {
@@ -370,7 +388,7 @@ namespace caw {
           if( !(ui_var->value_tid & (flow::kBoolTFl | flow::kIntTFl | flow::kUIntTFl | flow::kFloatTFl | flow::kDoubleTFl | flow::kStringTFl )))
             continue;
           
-
+          // if ui_ch_idx == 0 then create the var label ....
           if( ui_ch_idx == 0 )
           {
             if( ui_var->ch_idx == flow::kAnyChIdx )
@@ -383,7 +401,7 @@ namespace caw {
             }
             
           }
-          else
+          else // ... otherwise create the actual var UI
           {
 
             // subtract one from ui_ch_idx to account for the leading label column with is associated with ui_ch_idx==0
@@ -419,6 +437,52 @@ namespace caw {
           }
         }
       }
+    errLabel:
+      return rc;
+    }
+
+    rc_t _create_net_ui( ui_t* p, unsigned netParentUuId, const flow::ui_net_t* ui_net, const char* label_prefix );
+
+    rc_t _create_proc_ui( ui_t* p, unsigned netParentUuId, unsigned parentListUuId, const flow::ui_proc_t* ui_proc, unsigned proc_idx )
+    {
+      rc_t           rc              = kOkRC;
+      unsigned       procPanelUuId   = kInvalidId;
+      unsigned       chanPanelUuId   = kInvalidId;
+      unsigned       chanListUuId    = kInvalidId;
+      const unsigned label_buf_charN = 127;
+      char           label_buf[ label_buf_charN+1 ];
+      
+      if((rc = uiCreateFromRsrc(   p->ioH, "proc", parentListUuId, proc_idx )) != kOkRC )
+      {
+        goto errLabel;
+      }
+
+      procPanelUuId  =  uiFindElementUuId( p->ioH, parentListUuId, kProcPanelId,   proc_idx );
+      chanPanelUuId  =  uiFindElementUuId( p->ioH, procPanelUuId, kChanPanelId,   kInvalidId );
+      chanListUuId   =  uiFindElementUuId( p->ioH, chanPanelUuId, kChanListId,   kInvalidId );
+      //printf("proc_idx: %i %i %i : %i %i\n",proc_idx, parentListUuId, procPanelUuId,chanPanelUuId,chanListUuId);
+
+      // set the proc title
+      snprintf(label_buf,label_buf_charN,"%s:%i",ui_proc->label,ui_proc->label_sfx_id);      
+      uiSendValue( p->ioH, uiFindElementUuId(p->ioH, procPanelUuId, kProcInstLabelId, kInvalidId), label_buf );
+
+      //if((rc = _load_proc_presets(p,ui_proc,procPanelUuId)) != kOkRC )
+      //{
+      //}
+
+      if((rc = _create_var_list(p, chanListUuId, ui_proc )) != kOkRC )
+        goto errLabel;
+
+      if( ui_proc->internal_net )
+      {
+        flow::ui_net_t* ui_net = ui_proc->internal_net;
+        for(; ui_net!=nullptr; ui_net=ui_net->poly_link)
+          if((rc = _create_net_ui(p,netParentUuId,ui_net,label_buf)) != kOkRC )
+          {
+            rc = cwLogError(rc,"Internal net UI create failed.");
+            goto errLabel;
+          }
+      }
 
     errLabel:
       if(rc != kOkRC )
@@ -427,27 +491,40 @@ namespace caw {
       return rc;
       
     }
-    
-    rc_t _create_net_ui( ui_t* p, unsigned parentUuId, const flow::ui_net_t* ui_net )
+
+    rc_t _create_net_ui( ui_t* p, unsigned netListUuId, const flow::ui_net_t* ui_net, const char* title=nullptr )
     {
       rc_t rc = kOkRC;
 
-      unsigned netPanelUuId = kInvalidId;
-      unsigned procListUuId = kInvalidId;
+      unsigned       netPanelUuId    = kInvalidId;
+      unsigned       netTitleUuId    = kInvalidId;
+      unsigned       procListUuId    = kInvalidId;
 
-      if((rc = uiCreateFromRsrc(   p->ioH, "network", parentUuId, ui_net->poly_idx )) != kOkRC )
+      if((rc = uiCreateFromRsrc(   p->ioH, "network", netListUuId, p->ui_net_idx )) != kOkRC )
       {
         goto errLabel;
       }
 
-      netPanelUuId =  uiFindElementUuId( p->ioH, parentUuId,   kNetPanelId,   ui_net->poly_idx );
-      procListUuId =  uiFindElementUuId( p->ioH, netPanelUuId, "procListId" );
+      netPanelUuId =  uiFindElementUuId( p->ioH, netListUuId, kNetPanelId, p->ui_net_idx++ );
+      netTitleUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kNetTitleId, kInvalidId );
+      procListUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kProcListId, kInvalidId );
 
-      //printf("net:%i %i plist:%i\n",parentUuId, netPanelUuId,procListUuId);
+      //printf("netlist:%i title:%i netpanel:%i proclist:%i : poly_idx:%i\n",netListUuId, netTitleUuId, netPanelUuId, procListUuId, ui_net->poly_idx);
+
+
+      if( title != nullptr )
+      {
+        
+        const unsigned label_buf_charN = 127;
+        char           label_buf[ label_buf_charN+1 ];
+        snprintf(label_buf,label_buf_charN,"Network: %s:%i",title,ui_net->poly_idx);
+        uiSendValue( p->ioH, netTitleUuId, label_buf);
+        
+      }
       
       for(unsigned i=0; i<ui_net->procN; ++i)
       {
-        if((rc = _create_proc_ui( p, procListUuId, ui_net->procA+i, i )) != kOkRC )
+        if((rc = _create_proc_ui( p, netListUuId, procListUuId, ui_net->procA+i, i )) != kOkRC )
         {
           goto errLabel;
         }
@@ -478,13 +555,14 @@ cw::rc_t caw::ui::create( handle_t&             hRef,
   {
   
     ui_t* p = mem::allocZ<ui_t>();
-    p->ioH = ioH;
+    p->ioH     = ioH;
     p->ioFlowH = ioFlowH;
-    p->ui_net = ui_net;
+    p->ui_net  = ui_net;
     
     unsigned netPanelUuId   = io::uiFindElementUuId( ioH, kRootNetPanelId );
+    unsigned netListUuId    = io::uiFindElementUuId( ioH, netPanelUuId, kNetListId, kInvalidId );
 
-    if((rc = _create_net_ui( p, netPanelUuId, ui_net )) != kOkRC )
+    if((rc = _create_net_ui( p, netListUuId, ui_net )) != kOkRC )
     {
       rc = cwLogError(rc,"UI create failed.");
       goto errLabel;
