@@ -45,3 +45,17 @@ make install # installs into caw/build/linux/release/bin
 ```
 
 
+## Command Line
+
+```
+       caw ui        <program_cfg_fname> {<program_label>} : Run with a GUI.
+       caw exec      <program_cfg_fname> <program_label>   : Run without a GUI.
+       caw hw_report <program_cfg_fname>                   : Print the hardware details and exit.
+       caw test      <test_cfg_fname> (<module_label> | all) (<test_label> | all) (compare | echo | gen_report )* {args ...}
+       caw test_stub ...
+```
+
+Test Example Command line
+```
+caw test     ~/src/cwtest/src/cwtest/cfg/main.cfg /time all echo
+```
