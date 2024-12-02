@@ -1,5 +1,17 @@
 ### Example 01 - Write a sine signal to an audio file.
 
+__caw__ is a declarative language for describing data flow based
+real-time audio signal processing programs. The language
+is based on the __flow__ framework within [libcw](https://gitea.currawongproject.org/cml/libcw).
+
+Features of the language include:
+
+- Support for low-latency, interactive, real-time as well as non real-time programs.
+- Easily described distributed, parallel processing.
+- Clear and easily interpreted network execution semantics.
+- Automatic user interface generation.
+- Large collection of data flow unit processors.
+
 
 __caw__ programs are described using a slightly extended form of JSON. 
 In this example the program is contained in the dictionary labeled `sine_file_01` and

@@ -1,5 +1,11 @@
 # __caw__ audio processing program
 
+__caw__ is a declarative language for describing real-time data flow programs
+based on the [libcw](https://gitea.currawongproject.org/cml/libcw).
+
+The best introduction to the language is [__caw__ by Example](https://gitea.currawongproject.org/cml/caw/src/branch/master/examples/examples.md)
+This tutorial steps through the basic language constructs and theory of operation.
+
 # Installation
 
 
@@ -25,7 +31,6 @@ git clone http://gitea.larke.org/kevin/caw.git
 cd caw/src
 git clone http://gitea.larke.org/kevin/libcw.git
 cd libcw
-git switch poly
 ```
 
 Debug Build
