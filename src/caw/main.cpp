@@ -74,6 +74,7 @@ ui::appIdMap_t  appIdMapA[] = {
   { kPanelDivId,     kPgmSelId,       "pgmSelId" },
   { kPanelDivId,     kPgmPresetSelId, "pgmPresetSelId" },
   { kPanelDivId,     kPgmLoadBtnId,   "pgmLoadBtnId" },
+  { kPanelDivId,     kPgmPrintBtnId,  "pgmPrintBtnId" },
   { kPanelDivId,     kRunCheckId,     "runCheckId" },
 
   { kPanelDivId,     kRootNetPanelId, "rootNetPanelId" },
@@ -168,6 +169,8 @@ rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
   unsigned pgm_idx          = kInvalidIdx;
   unsigned pgmPresetSelUuId = io::uiFindElementUuId( app->ioH, kPgmPresetSelId );
   unsigned pgmLoadBtnUuId   = io::uiFindElementUuId( app->ioH, kPgmLoadBtnId );
+  unsigned pgmPrintBtnUuId  = io::uiFindElementUuId( app->ioH, kPgmPrintBtnId );
+  unsigned runCheckUuId     = io::uiFindElementUuId( app->ioH, kRunCheckId );
   unsigned preset_cnt       = 0;
 
   if( !(kPgmBaseSelId <= pgmSelOptId && pgmSelOptId <= kPgmMaxSelId ) )
@@ -185,6 +188,8 @@ rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
 
   uiSetEnable( app->ioH, pgmPresetSelUuId, false );  // Disable the preset menu and load btn in anticipation of error.
   uiSetEnable( app->ioH, pgmLoadBtnUuId,   false );  //
+  uiSetEnable( app->ioH, pgmPrintBtnUuId,  false );  //
+  uiSetEnable( app->ioH, runCheckUuId,     false );  //
   app->pgm_preset_idx = kInvalidIdx;                 // The preset menu is empty and so there can be no valid preset selected.
   pgm_idx             = pgmSelOptId - kPgmBaseSelId; // Calc the ioFlowCtl preset index of the selected preset.
 
@@ -232,6 +237,13 @@ rc_t _on_pgm_preset_select( app_t* app, unsigned pgmPresetSelOptId )
 
   app->pgm_preset_idx = pgmPresetSelOptId - kPgmPresetBaseSelId;
 
+  if( program_is_initialized(app->ioFlowH) )
+    if((rc = program_apply_preset( app->ioFlowH, app->pgm_preset_idx )) == kOkRC )
+    {
+      // if the app isn't running then update the UI manually
+      if( !app->run_fl )
+        rc = send_ui_updates(app->ioFlowH);
+    }
 
 errLabel:
 
@@ -265,11 +277,21 @@ rc_t _on_pgm_load(app_t* app )
     }
 
     uiSetEnable(app->ioH, io::uiFindElementUuId( app->ioH, kRunCheckId ), true );
+    uiSetEnable(app->ioH, io::uiFindElementUuId( app->ioH, kPgmPrintBtnId ), true );
 
   }
   
 errLabel:
 
+  return rc;
+}
+
+rc_t _on_pgm_print( app_t* app )
+{
+  rc_t rc = kOkRC;
+  if( app->ioFlowH.isValid() )
+    print_network(app->ioFlowH);
+  
   return rc;
 }
 
@@ -372,6 +394,10 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
 
     case kPgmLoadBtnId:
       _on_pgm_load(app);
+      break;
+
+    case kPgmPrintBtnId:
+      _on_pgm_print(app);
       break;
       
     case kRunCheckId:
@@ -727,8 +753,9 @@ void _test_stub( app_t& app )
 int main( int argc, char* argv[] )
 {
   rc_t  rc  = kOkRC;
-  app_t app = { .pgm_preset_idx=kInvalidIdx }; // all zero except ...
   bool exec_complete_fl = false;
+  app_t app = {}; // all zero
+  app.pgm_preset_idx = kInvalidIdx;
   
   cw::log::createGlobal();
 
