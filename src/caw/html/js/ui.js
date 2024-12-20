@@ -382,7 +382,7 @@ function ui_create_select( parent_ele, d )
 {
     var ele = ui_create_ctl( parent_ele, "select", d.title, d, "uiSelect" );
     ele.onchange = function() { ui_on_select(this) }
-    ele.onclick  = function() { ui_on_select(this) }
+    //ele.onclick  = function() { ui_on_select(this) }
     
     if( !d.hasOwnProperty('value') )
     {
