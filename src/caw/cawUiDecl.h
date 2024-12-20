@@ -16,6 +16,7 @@ namespace caw {
       kPgmSelId,
       kPgmPresetSelId,
       kPgmLoadBtnId,
+      kPgmPrintBtnId,
       kRunCheckId,
     
       kRootNetPanelId,
