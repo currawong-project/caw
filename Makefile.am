@@ -17,14 +17,14 @@ include_HEADERS=
 
 AM_CPPFLAGS =   -I..  -I$(srcdir)/src/libcw
 AM_CFLAGS   = -Wno-multichar 
-AM_CXXFLAGS = -Wno-multichar
+AM_CXXFLAGS = -Wno-multichar -std=c++20 
 AM_LDFLAGS  =  
 
 
 # debug/release switches
 if DEBUG
   AM_CFLAGS   += -g 
-  AM_CXXFLAGS += -g -Wall  -fsanitize=undefined
+  AM_CXXFLAGS += -g -Wall -Wextra -Wno-unused  -fsanitize=undefined
 else
   AM_CFLAGS   += -O3
   AM_CXXFLAGS += -O3
