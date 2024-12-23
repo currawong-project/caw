@@ -301,6 +301,12 @@ rc_t _on_pgm_run( app_t* app, bool run_check_fl )
 
   app->run_fl = run_check_fl;
 
+  if( !run_check_fl )
+  {
+    midiDeviceAllNotesOff( app->ioH );
+
+  }
+
   return rc;
 }
 
