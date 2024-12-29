@@ -1,6 +1,6 @@
 # __caw__ By Example
 
-__caw__ is a declarative language for describing data flow based
+__caw__ is a configuration language for describing data flow based
 real-time audio signal processing programs. The language
 is based on the __flow__ framework within [libcw](https://gitea.currawongproject.org/cml/libcw).
 
