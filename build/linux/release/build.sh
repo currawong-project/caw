@@ -12,7 +12,7 @@ cd ${curdir}
 # 2) Run the program. ./foo
 # 3) Run gprof /libtool --mode=execute gprof ./foo
 
-../../../configure --prefix=${curdir} \
+../../../configure --prefix=${curdir}  --enable-websock --enable-alsa \
 CFLAGS="-Wall" \
 CXXFLAGS="-Wall" \
 CPPFLAGS= \
