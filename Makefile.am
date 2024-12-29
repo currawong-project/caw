@@ -17,7 +17,7 @@ include_HEADERS=
 
 AM_CPPFLAGS =   -I..  -I$(srcdir)/src/libcw
 AM_CFLAGS   = -Wno-multichar 
-AM_CXXFLAGS = -Wno-multichar -std=c++20 
+AM_CXXFLAGS = -Wno-multichar
 AM_LDFLAGS  =  
 
 
@@ -56,7 +56,7 @@ if cwWEB
   AM_CPPFLAGS += -I$(FFT_DIR)/include -I$(FFT_DIR_D)/include -I$(FFT_DIR_S)/include
   AM_LDFLAGS  += -L$(FFT_DIR)/lib     -L$(FFT_DIR_D)/lib     -L$(FFT_DIR_S)/lib
 else
-  AM_CXXFLAGS += --std=c++17
+  AM_CXXFLAGS += --std=c++20
 endif
 
 include src/libcw/Makefile.am
