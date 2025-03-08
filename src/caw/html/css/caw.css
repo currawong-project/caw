@@ -33,8 +33,12 @@
 .varList {
      display: flex;
      flex-direction: column;
-     overflow-y: hidden;
-     
+     overflow-y: hidden;          
+}
+
+.varList > div {
+    padding-top: 3px;
+	    
 }
 
 .varPanel {
