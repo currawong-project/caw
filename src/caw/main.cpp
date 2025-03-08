@@ -355,6 +355,13 @@ rc_t _on_variable_value( app_t* app, const io::ui_msg_t& m, T value )
     rc = cwLogError(rc,"Unable to access variable value.");
     goto errLabel;
   }
+
+  // setting the variable value may have resulted flow -> ui messages
+  // having been queued - if the program isn't running these will
+  // have to be manually triggered
+  if( !app->run_fl )
+    rc = send_ui_updates(app->ioFlowH);
+
   
 errLabel:
   if( rc != kOkRC )
@@ -411,6 +418,10 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       _on_pgm_run(app,m.value->u.b);
       break;
 
+    case kButtonWidgetId:
+      _on_variable_value(app,m,m.value->u.b);
+      break;
+      
     case kCheckWidgetId:
       rc = _on_variable_value(app,m,m.value->u.b);
       break;

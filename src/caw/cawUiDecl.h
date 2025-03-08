@@ -38,6 +38,7 @@ namespace caw {
       kVarPanelId,
       kWidgetListId,
 
+      kButtonWidgetId,
       kCheckWidgetId,
       kIntWidgetId,
       kUIntWidgetId,
