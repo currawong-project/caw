@@ -27,9 +27,9 @@ sudo apt install autoconf libtool fftw-dev libwebsockets-dev libatlas-base-dev l
 Get the project code
 ```
 cd ~/src
-git clone http://gitea.larke.org/kevin/caw.git
+git clone http://gitea.currawongproject.org/cml/caw.git
 cd caw/src
-git clone http://gitea.larke.org/kevin/libcw.git
+git clone http://gitea.currawongproject.org/cml/libcw.git
 cd libcw
 ```
 
