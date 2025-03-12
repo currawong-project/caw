@@ -173,29 +173,12 @@ namespace caw {
         case flow::kStringTFl: widget_type_id_ref = kStringWidgetId; break;          
       }
 
-      // get the proc desc 'vars' dict.
-      if((rc = ui_var->ui_proc->proc->class_desc->cfg->getv_opt("vars",cfg)) != kOkRC )
+      if( ui_var->ui_cfg == nullptr )
       {
-        rc = cwLogError(rc,"Error parsing proc desc. 'vars'.");
+        rc = cwLogError(rc,"Error locating 'var' '%s' on proc desc.",cwStringNullGuard(ui_var->label));
         goto errLabel;
       }
-
-      // locate this 'var' in the var-list
-      if((cfg = cfg->find(ui_var->label)) == nullptr )
-      {
-        rc = cwLogError(rc,"Error locating 'var' '%s' on proc desc.",ui_var->label);
-        goto errLabel;
-      }
-
-      // get the 'ui' record for this var
-      if((rc = cfg->getv_opt("ui",ui_cfg)) != kOkRC )
-      {
-        rc = cwLogError(rc,"Error parsing variable 'ui' cfg.");
-        goto errLabel;
-      }
-
-      // if a 'ui' record was found
-      if( ui_cfg != nullptr )
+      else
       {
         // get the type of this 'ui' widget
         if((rc = ui_cfg->getv("type",widget_type_label)) != kOkRC )
