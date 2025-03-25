@@ -62,5 +62,5 @@ make install # installs into caw/build/linux/release/bin
 
 Test Example Command line
 ```
-caw test     ~/src/cwtest/src/cwtest/cfg/main.cfg /time all echo
+caw test     ~/src/cwtest/src/cwtest/cfg/test/main.cfg /time all echo
 ```
