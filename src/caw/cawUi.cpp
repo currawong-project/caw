@@ -151,8 +151,6 @@ namespace caw {
     {
       rc_t            rc                = kOkRC;
       unsigned        value_type_flag   = ui_var->value_tid & flow::kTypeMask;
-      const object_t* cfg               = nullptr;
-      const object_t* ui_cfg            = nullptr;
       const char*     widget_type_label = nullptr;
       
       idLabelPair_t   typeA[] = {
@@ -173,15 +171,19 @@ namespace caw {
         case flow::kStringTFl: widget_type_id_ref = kStringWidgetId; break;          
       }
 
+      /*
       if( ui_var->ui_cfg == nullptr )
       {
         rc = cwLogError(rc,"Error locating 'var' '%s' on proc desc.",cwStringNullGuard(ui_var->label));
         goto errLabel;
       }
       else
+      */
+      
+      if( ui_var->ui_cfg != nullptr )
       {
         // get the type of this 'ui' widget
-        if((rc = ui_cfg->getv("type",widget_type_label)) != kOkRC )
+        if((rc = ui_var->ui_cfg->getv("type",widget_type_label)) != kOkRC )
         {
           rc = cwLogError(rc,"Error parsing variable 'ui' type cfg.");
           goto errLabel;

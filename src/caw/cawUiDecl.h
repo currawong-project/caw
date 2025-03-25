@@ -18,6 +18,8 @@ namespace caw {
       kPgmLoadBtnId,
       kPgmPrintBtnId,
       kRunCheckId,
+
+      kLogId,
     
       kRootNetPanelId,
       kNetListId,

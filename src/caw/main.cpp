@@ -77,6 +77,8 @@ ui::appIdMap_t  appIdMapA[] = {
   { kPanelDivId,     kPgmPrintBtnId,  "pgmPrintBtnId" },
   { kPanelDivId,     kRunCheckId,     "runCheckId" },
 
+  { kPanelDivId,     kLogId,           "logId" },
+  
   { kPanelDivId,     kRootNetPanelId, "rootNetPanelId" },
   { kRootNetPanelId, kNetListId,      "netListId" },
 
@@ -416,6 +418,10 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
     case kRunCheckId:
       io::uiSetTitle(app->ioH,m.uuId,m.value->u.b ? "Off" : "On" );
       _on_pgm_run(app,m.value->u.b);
+      break;
+
+    case kLogId:
+      
       break;
 
     case kButtonWidgetId:
@@ -767,6 +773,24 @@ void _test_stub( app_t& app )
 
 }
 
+void _log_output_func( void* arg, unsigned level, const char* text )
+{
+  app_t*   app     = (app_t*)arg;
+
+  if( app->ioH.isValid() && is_started_flag(app->ioH) )
+  {
+  
+    unsigned logUuId = uiFindElementUuId( app->ioH, kLogId);
+  
+    uiSetLogLine( app->ioH, logUuId, text );
+  }
+  else
+  {
+    log::defaultOutput(nullptr,level,text);
+  }
+}
+
+
 int main( int argc, char* argv[] )
 {
   rc_t  rc  = kOkRC;
@@ -774,7 +798,7 @@ int main( int argc, char* argv[] )
   app_t app = {}; // all zero
   app.pgm_preset_idx = kInvalidIdx;
   
-  cw::log::createGlobal();
+  cw::log::createGlobal(log::kPrint_LogLevel,_log_output_func,&app);
 
   unsigned appIdMapN = sizeof(appIdMapA)/sizeof(appIdMapA[0]);
 
