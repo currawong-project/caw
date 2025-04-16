@@ -29,6 +29,8 @@ enum {
   kHwReportSelId,
   kTestStubSelId,
   kHelpSelId,
+
+  kPgmLoadThreadId
 };
 
 
@@ -59,7 +61,6 @@ typedef struct app_str
   io::handle_t          ioH;
   io_flow_ctl::handle_t ioFlowH;
   caw::ui::handle_t     uiH;
-
 } app_t;
 
 ui::appIdMap_t  appIdMapA[] = {
@@ -70,6 +71,9 @@ ui::appIdMap_t  appIdMapA[] = {
   { kPanelDivId,     kNetPrintBtnId,  "netPrintBtnId" },
   { kPanelDivId,     kReportBtnId,    "reportBtnId" },
   { kPanelDivId,     kLatencyBtnId,   "latencyBtnId" },
+
+  { kPanelDivId,     kReloadIoBtnId,  "reloadIoBtnId" },
+  { kPanelDivId,     kReloadPgmBtnId, "reloadPgmBtnId"},
   
   { kPanelDivId,     kPgmSelId,       "pgmSelId" },
   { kPanelDivId,     kPgmPresetSelId, "pgmPresetSelId" },
@@ -163,6 +167,69 @@ errLabel:
   return rc;
 }
 
+rc_t _load_pgm_thread_func( void* arg )
+{
+  rc_t rc = kOkRC;
+  app_t* app = (app_t*)arg;
+  
+  const flow::ui_net_t* ui_net = nullptr;
+  
+  if((rc = program_initialize(app->ioFlowH, app->pgm_preset_idx )) != kOkRC )
+  {
+    rc = cwLogError(rc,"Network initialization failed.");
+    goto errLabel;
+  }
+
+  if((ui_net = program_ui_net(app->ioFlowH)) == nullptr )
+  {
+    rc = cwLogError(rc,"Network UI description initialization failed.");
+    goto errLabel;      
+  }
+
+  if((rc = caw::ui::create(app->uiH, app->ioH, app->ioFlowH, ui_net )) != kOkRC )
+  {
+    rc = cwLogError(rc,"Network UI create failed.");
+    goto errLabel;            
+  }
+
+  uiSetEnable(app->ioH, io::uiFindElementUuId( app->ioH, kRunCheckId ), true );
+  uiSetEnable(app->ioH, io::uiFindElementUuId( app->ioH, kPgmPrintBtnId ), true );
+
+errLabel:
+  return rc;
+}
+
+rc_t _on_load_pgm_thread_complete(app_t* app)
+{
+  rc_t rc = kOkRC;
+  unsigned preset_cnt = program_preset_count(app->ioFlowH);
+
+  unsigned pgmPresetSelUuId = io::uiFindElementUuId( app->ioH, kPgmPresetSelId );
+  unsigned pgmLoadBtnUuId   = io::uiFindElementUuId( app->ioH, kPgmLoadBtnId );
+
+  // populate the preset menu
+  for(unsigned i=0; i<preset_cnt; ++i)
+  {
+    unsigned uuId;
+    if((rc = uiCreateOption( app->ioH, uuId, pgmPresetSelUuId, nullptr, kPgmPresetBaseSelId+i, kInvalidId, "optClass", program_preset_title(app->ioFlowH,i) )) != kOkRC )
+    {
+      rc = cwLogError(rc,"Error on populating the program preset select widget.");
+      goto errLabel;
+    }
+  }
+
+  if( preset_cnt > 0 )
+  {
+    uiSetEnable( app->ioH, pgmPresetSelUuId, true );
+    app->pgm_preset_idx = 0; // since it is showing - select the first preset as the default preset
+  }
+  
+  uiSetEnable( app->ioH, pgmLoadBtnUuId, true );
+
+errLabel:
+  return rc;
+}
+
 
 rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
 {
@@ -193,6 +260,7 @@ rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
   uiSetEnable( app->ioH, pgmPrintBtnUuId,  false );  //
   uiSetEnable( app->ioH, runCheckUuId,     false );  //
   app->pgm_preset_idx = kInvalidIdx;                 // The preset menu is empty and so there can be no valid preset selected.
+
   pgm_idx             = pgmSelOptId - kPgmBaseSelId; // Calc the ioFlowCtl preset index of the selected preset.
 
   // load the program
@@ -222,7 +290,7 @@ rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
   }
   
   uiSetEnable( app->ioH, pgmLoadBtnUuId, true );
-  
+
 errLabel:
   return rc;
 }
@@ -258,29 +326,15 @@ rc_t _on_pgm_load(app_t* app )
   
   if( !program_is_initialized( app->ioFlowH) )
   {
-    const flow::ui_net_t* ui_net = nullptr;
-  
-    if((rc = program_initialize(app->ioFlowH, app->pgm_preset_idx )) != kOkRC )
+    // Load the program in a separate thread so that we can see the log messages as they occur.
+    // Without async load the program is blocked until the load is complete.
+    // When _load_pgm_thread_func() is complete _on_load_pgm_thread_complete() is called.
+    bool asyncResponseFl = true;
+    if((rc = threadRunOnce( app->ioH, kPgmLoadThreadId, asyncResponseFl, _load_pgm_thread_func, app, "pgm_loader_thread" )) != kOkRC )
     {
-      rc = cwLogError(rc,"Network initialization failed.");
+      rc = cwLogError(rc,"Unable to start program loader thread.");
       goto errLabel;
     }
-
-    if((ui_net = program_ui_net(app->ioFlowH)) == nullptr )
-    {
-      rc = cwLogError(rc,"Network UI description initialization failed.");
-      goto errLabel;      
-    }
-
-    if((rc = caw::ui::create(app->uiH, app->ioH, app->ioFlowH, ui_net )) != kOkRC )
-    {
-      rc = cwLogError(rc,"Network UI create failed.");
-      goto errLabel;            
-    }
-
-    uiSetEnable(app->ioH, io::uiFindElementUuId( app->ioH, kRunCheckId ), true );
-    uiSetEnable(app->ioH, io::uiFindElementUuId( app->ioH, kPgmPrintBtnId ), true );
-
   }
   
 errLabel:
@@ -332,7 +386,7 @@ rc_t _on_ui_init( app_t* app )
 
   if( pgm_cnt )
     _on_pgm_select(app, kPgmBaseSelId );
-  
+
 errLabel:
   return rc;
 }
@@ -398,6 +452,12 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       latency_measure_report(app->ioH);
       latency_measure_setup(app->ioH);
       break;
+
+    case kReloadIoBtnId:
+      break;
+
+    case kReloadPgmBtnId:
+      break;
       
     case kPgmSelId:
       _on_pgm_select(app,m.value->u.u);
@@ -420,8 +480,7 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       _on_pgm_run(app,m.value->u.b);
       break;
 
-    case kLogId:
-      
+    case kLogId:      
       break;
 
     case kButtonWidgetId:
@@ -451,6 +510,11 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
     case kStringWidgetId:
       rc = _on_variable_value(app,m,m.value->u.s);
       break;
+
+    case kListWidgetId:
+      rc = _on_variable_value(app,m,m.value->u.u);
+      break;
+    
   }
   return rc;
 }
@@ -521,6 +585,10 @@ rc_t _ui_echo_callback(app_t* app, const io::ui_msg_t& m )
     case kStringWidgetId:
       rc = _on_variable_echo<const char*>(app,m);
       break;
+      
+    case kListWidgetId:
+      rc = _on_variable_echo<unsigned>(app,m);
+      break;
   }
   
   return rc;
@@ -588,6 +656,8 @@ rc_t _io_callback( void* arg, const io::msg_t* m )
   switch( m->tid )
   {
     case io::kThreadTId:
+      if( m->u.thread->id == kPgmLoadThreadId )
+        _on_load_pgm_thread_complete(app);
       break;
       
     case io::kTimerTId:

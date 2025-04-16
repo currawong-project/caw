@@ -11,7 +11,10 @@ namespace caw {
       kIoReportBtnId,
       kNetPrintBtnId,
       kReportBtnId,  
-      kLatencyBtnId, 
+      kLatencyBtnId,
+
+      kReloadIoBtnId,
+      kReloadPgmBtnId,
 
       kPgmSelId,
       kPgmPresetSelId,
@@ -48,6 +51,7 @@ namespace caw {
       kDoubleWidgetId,
       kStringWidgetId,
       kMeterWidgetId,
+      kListWidgetId,
       
 
       kPgmBaseSelId,
