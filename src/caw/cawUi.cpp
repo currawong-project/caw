@@ -126,6 +126,40 @@ namespace caw {
     errLabel:
       return rc;
     }
+
+    
+    rc_t _create_list_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref )
+    {
+      rc_t rc = kOkRC;
+
+      if(ui_var->list == nullptr )
+      {
+        rc = cwLogError(rc,"There is not list data for the list widget '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+        goto errLabel;
+      }
+
+      if((rc = uiCreateSelect(  p->ioH, uuid_ref, widgetListUuId, nullptr, kListWidgetId, kInvalidId, nullptr, nullptr )) != kOkRC )
+      {
+        rc = cwLogError(rc,"List widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+        goto errLabel;
+      }
+
+      for(unsigned i=0; i<ui_var->list->eleN; ++i)
+      {
+        unsigned uuid   = 0;
+        unsigned chanId = i;
+        unsigned appId  = i;
+        
+        if((rc = uiCreateOption( p->ioH, uuid, uuid_ref, NULL, appId, chanId, nullptr, list_ele_label(ui_var->list,i) )) != kOkRC )
+        {
+          rc = cwLogError(rc,"List option create failed on '%s:%i' index '%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id,i);
+          goto errLabel;
+        }
+      }
+      
+    errLabel:
+      return rc;
+    }
     
     rc_t _create_var_label( ui_t* p, unsigned parentListUuId, const flow::ui_var_t* ui_var, const char* label, unsigned var_idx )
     {
@@ -155,6 +189,7 @@ namespace caw {
       
       idLabelPair_t   typeA[] = {
         { kMeterWidgetId, "meter" },
+        { kListWidgetId,  "list" },
         { kInvalidId, nullptr }
       };
 
@@ -277,7 +312,7 @@ namespace caw {
 
         case kStringWidgetId:
           rc = _create_string_widget(p,widgetListUuId,ui_var,widget_uuId);
-          break;
+          break;          
 
         case kMeterWidgetId:
           {
@@ -287,6 +322,10 @@ namespace caw {
           }
           break;
 
+        case kListWidgetId:
+          rc = _create_list_widget(p,widgetListUuId,ui_var,widget_uuId);
+          break;          
+          
         default:
           {
             /*
