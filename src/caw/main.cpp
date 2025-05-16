@@ -854,7 +854,8 @@ void _log_output_func( void* arg, unsigned level, const char* text )
   
     uiSetLogLine( app->ioH, logUuId, text );
   }
-  else
+
+  if( !app->run_fl )
   {
     log::defaultOutput(nullptr,level,text);
   }
