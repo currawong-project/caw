@@ -10,6 +10,7 @@
 #include "cwFileSys.h"
 #include "cwIo.h"
 #include "cwVectOps.h"
+#include "cwTracer.h"
 
 #include "cwFlowDecl.h"
 #include "cwIoFlowCtl.h"
@@ -61,6 +62,10 @@ typedef struct app_str
   io::handle_t          ioH;
   io_flow_ctl::handle_t ioFlowH;
   caw::ui::handle_t     uiH;
+
+  const object_t*       tracer_cfg;
+  tracer::handle_t      tracerH;
+  
 } app_t;
 
 ui::appIdMap_t  appIdMapA[] = {
@@ -782,6 +787,12 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
       goto errLabel;
     }
 
+    // read the tracer cfg. record.
+    if((rc = app.flow_cfg->getv_opt("tracer", app.tracer_cfg )) != kOkRC )
+    {
+      goto errLabel;
+    }
+
     // parse the IO cfg file
     if((rc = objectFromFile(io_cfg_fn,app.io_cfg)) != kOkRC )
     {
@@ -876,6 +887,13 @@ int main( int argc, char* argv[] )
   if((rc= _parse_main_cfg(app, argc, argv )) != kOkRC )
     goto errLabel;
 
+  if(app.tracer_cfg != nullptr )
+  {
+    if((rc = tracer::create(app.tracerH,app.tracer_cfg)) == kOkRC )
+      set_global_handle(app.tracerH);
+      
+  }
+
   switch( app.cmd_line_action_id )
   {
     case kTestSelId:
@@ -955,6 +973,13 @@ errLabel:
 
   if((rc = destroy(app.uiH)) != kOkRC )
     rc = cwLogError(rc,"UI destroy failed.");
+
+  if( app.tracerH.isValid() )
+  {
+    write(app.tracerH);
+    if((rc = destroy(app.tracerH)) != kOkRC )
+      rc = cwLogError(rc,"Tracer destroy failed.");
+  }
 
   if( app.io_cfg != nullptr )
     app.io_cfg->free();
