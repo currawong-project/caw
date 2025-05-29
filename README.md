@@ -1,12 +1,11 @@
 # __caw__ audio processing program
 
 __caw__ is an experimental, interactive, real-time audio processing environment
-configured by a declarative language for describing data flow programs
-based on the [libcw](https://gitea.currawongproject.org/cml/libcw).
+configured with a declarative language for describing data flow programs.
+It is based on the [libcw](https://gitea.currawongproject.org/cml/libcw).
 
 
-The best introduction to the language is [__caw__ by Example](https://gitea.currawongproject.org/cml/caw/src/branch/master/examples/examples.md)
-This tutorial steps through the basic language constructs and theory of operation.
+The best introduction to the configuration language is [__caw__ by Example](https://gitea.currawongproject.org/cml/caw/src/branch/master/examples/examples.md) This tutorial steps through the basic language constructs and theory of operation.
 
 # Installation
 
