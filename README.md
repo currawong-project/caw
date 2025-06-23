@@ -2,9 +2,9 @@
 
 __caw__ is an interactive, real-time audio processing environment
 configured by a declarative language for describing data flow programs
-based on the [libcw](https://gitea.currawongproject.org/cml/libcw).
+based on the [libcw](https://github.com/currawong-project/libcw).
 
-The best introduction to the language is [__caw__ by Example](https://gitea.currawongproject.org/cml/caw/src/branch/master/examples/examples.md)
+The best introduction to the language is [__caw__ by Example](https://github.com/currawong-project/caw/blob/master/examples/examples.md)
 This tutorial steps through the basic language constructs and theory of operation.
 
 # Installation
@@ -21,15 +21,17 @@ Ubuntu
 sudo apt install autoconf libtool fftw-dev libwebsockets-dev libatlas-base-dev libasound2-dev libubsan1 
 ```
 
+Note that libcw will take advantage of the [Intel Math Kernel Library](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html)
+if it is enabled via the configure `enable-mkl` switch.
 
 ## Build
 
 Get the project code
 ```
 cd ~/src
-git clone http://gitea.currawongproject.org/cml/caw.git
+git clone https://github.com/currawong-project/caw.git
 cd caw/src
-git clone http://gitea.currawongproject.org/cml/libcw.git
+git clone https://github.com/currawong-project/libcw.git
 cd libcw
 ```
 

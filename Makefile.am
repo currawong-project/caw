@@ -44,6 +44,12 @@ endif
 
 endif
 
+# if cwMKL
+#   MKLROOT = /opt/intel/oneapi/2025.1
+#  AM_LDFLAGS += -L$(MKLROOT)/lib -Wl,-rpath,$(MKLROOT)/lib
+#  AM_CPPFLAGS +=  -I$(MKLROOT)/include
+# endif
+
 if cwWEB
 
   AM_CXXFLAGS += --std=c++11
@@ -76,6 +82,10 @@ src_caw_caw_LDADD     =   -lpthread -ldl
 
 if cwFFTW
   src_caw_caw_LDADD += -lfftw3 -lfftw3f
+endif
+
+if cwMKL
+  src_caw_caw_LDADD +=  -lmkl_intel_ilp64 -lmkl_sequential -lmkl_core
 endif
 
 if cwWEB

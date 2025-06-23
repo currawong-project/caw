@@ -12,11 +12,13 @@ cd ${curdir}
 # 2) Run the program. ./foo
 # 3) Run gprof /libtool --mode=execute gprof ./foo
 
-../../../configure --prefix=${curdir}  --enable-websock --enable-alsa \
+MKL="/opt/intel/oneapi/2025.1"
+
+../../../configure --prefix=${curdir}  --enable-websock --enable-alsa --enable-mkl \
 CFLAGS="-Wall" \
 CXXFLAGS="-Wall" \
-CPPFLAGS= \
-LDFLAGS= \
+CPPFLAGS="-I${MKL}/include" \
+LDFLAGS="-L${MKL}/lib -Wl,-rpath,${MKL}/lib" \
 LIBS=
 
 

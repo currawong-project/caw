@@ -52,6 +52,7 @@ fi
 
 echo "fftw='${fftw}'"
 
+
 # The following is a custom macro in ./m4/os_type.m4
 # be sure to also set "ACLOCAL_AMFLAGS = -I m4" in ./Makefile.am
 # Defines the config.h variable OS_LINUX or OS_OSX
@@ -149,6 +150,39 @@ AM_CONDITIONAL([cwWEB], [test x$web == xtrue])
 
 echo "web=${web}"
 
+#
+# Enable MKL
+#
+
+# mkl=true
+# AM_CONDITIONAL([cwMKL],[test x"${mkl}" = xtrue])
+
+# if test x"$mkl" = xtrue; then
+# AC_DEFINE([cwMKL], 1,[Use libmkl3.])
+# fi
+
+# echo "mkl='${mkl}'"
+
+
+#
+# Enable MKL
+#
+AC_ARG_ENABLE([mkl],
+     [  --enable-mkl    Use Intel MKL library],
+     [case "${enableval}" in
+       yes) mkl=true ;;
+       no)  mkl=false ;;
+       *) AC_MSG_ERROR([bad value ${enableval} for --enable-mkl]) ;;
+     esac],[mkl=false])
+
+	
+if test x"$mkl" = xtrue; then
+AC_DEFINE([cwMKL], 1,[Use libmkl.])
+fi
+
+AM_CONDITIONAL([cwMKL], [test x$mkl == xtrue])
+
+echo "mkl=${mkl}"
 
 
 
