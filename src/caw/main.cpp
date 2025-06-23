@@ -20,6 +20,9 @@
 
 #include "cwTest.h"
 
+
+#include <ctime>
+
 using namespace cw;
 using namespace caw::ui;
 
@@ -879,6 +882,9 @@ int main( int argc, char* argv[] )
   bool exec_complete_fl = false;
   app_t app = {}; // all zero
   app.pgm_preset_idx = kInvalidIdx;
+
+  // seed the random number generator with the time
+  std::srand(static_cast<unsigned int>(std::time(0)));
   
   cw::log::createGlobal(log::kPrint_LogLevel,_log_output_func,&app);
 
