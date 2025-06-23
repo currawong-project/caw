@@ -1,8 +1,7 @@
 # __caw__ audio processing program
 
-__caw__ is an interactive, real-time audio processing environment
-configured by a declarative language for describing data flow programs
-based on the [libcw](https://github.com/currawong-project/libcw).
+__caw__ is an interactive, real-time audio processing environment based on [libcw](https://github.com/currawong-project/libcw).
+The environment implements a data flow processing model which is specified with a JSON like configuration language.
 
 The best introduction to the language is [__caw__ by Example](https://github.com/currawong-project/caw/blob/master/examples/examples.md)
 This tutorial steps through the basic language constructs and theory of operation.
