@@ -134,7 +134,7 @@ namespace caw {
 
       if(ui_var->list == nullptr )
       {
-        rc = cwLogError(rc,"There is not list data for the list widget '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+        rc = cwLogError(rc,"There is no list data for the list widget '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
         goto errLabel;
       }
 
