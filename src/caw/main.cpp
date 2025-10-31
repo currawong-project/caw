@@ -780,7 +780,7 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
     // parse the cfg. file
     if((rc = objectFromFile(app.cmd_line_pgm_fname,app.flow_cfg)) != kOkRC )
     {
-      rc = cwLogError(rc,"Parsing failed on the cfg. file '%s'.",argv[1]);
+      rc = cwLogError(rc,"Parsing failed on the cfg. file '%s'.",cwStringNullGuard(app.cmd_line_pgm_fname));
       goto errLabel;
     }
 
