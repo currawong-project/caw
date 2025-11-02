@@ -362,6 +362,7 @@ function ui_create_check( parent_ele, d )
 //
 function ui_on_select( ele )
 {
+    //console.log("SELECT:"+ele.options[ ele.selectedIndex ].appId)
     ui_send_int_value(ele,ele.options[ ele.selectedIndex ].appId);
 }
 
@@ -381,8 +382,8 @@ function ui_select_set_from_option_app_id( sel_ele, option_appId )
 function ui_create_select( parent_ele, d )
 {
     var ele = ui_create_ctl( parent_ele, "select", d.title, d, "uiSelect" );
-    ele.onchange = function() { ui_on_select(this) }
-    //ele.onclick  = function() { ui_on_select(this) }
+    //ele.onchange = function() { ui_on_select(this) }
+    ele.onclick  = function() { ui_on_select(this) }
     
     if( !d.hasOwnProperty('value') )
     {
