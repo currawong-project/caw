@@ -24,7 +24,8 @@ AM_LDFLAGS  =
 # debug/release switches
 if DEBUG
   AM_CFLAGS   += -g 
-  AM_CXXFLAGS += -g -Wall -Wextra -Wno-unused  -fsanitize=undefined
+  AM_CXXFLAGS += -g -Wall -Wextra -Wno-unused  -fsanitize=undefined -fsanitize=address
+  AM_LDFLAGS  += -fsanitize=address
 else
   AM_CFLAGS   += -O3
   AM_CXXFLAGS += -O3
@@ -34,7 +35,7 @@ endif
 if OS_LINUX
 
 if OS_64
-  AM_LDFLAGS += -L/usr/lib64/atlas -L/usr/lib64
+  AM_LDFLAGS += -L/usr/lib64/atlas -L/usr/lib64 
   AM_CFLAGS  += -m64
 endif	
 
