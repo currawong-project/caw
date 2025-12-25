@@ -168,7 +168,19 @@ label {
 
 
 .uiStringDisp {
+    display: flex;
+    align-items: center;
+    padding: 0px 5px;
     width: 100%;
+    color: black;
+}
+
+.text_disabled {
+    color: darkgray;
+}
+
+.text_enabled {
+    color: black;
 }
 
 .uiSelected {

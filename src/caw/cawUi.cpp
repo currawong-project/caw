@@ -63,10 +63,10 @@ namespace caw {
       return rc;
     }
 
-    rc_t _create_bool_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref )
+    rc_t _create_bool_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, const char* title, unsigned& uuid_ref )
     {
       rc_t rc = kOkRC;
-      if((rc = uiCreateCheck(p->ioH, uuid_ref, widgetListUuId, nullptr, kCheckWidgetId, kInvalidId, nullptr, nullptr )) != kOkRC )
+      if((rc = uiCreateCheck(p->ioH, uuid_ref, widgetListUuId, nullptr, kCheckWidgetId, kInvalidId, nullptr, title )) != kOkRC )
       {
         rc = cwLogError(rc,"Check box widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
       }
@@ -86,11 +86,11 @@ namespace caw {
       return rc;
     }
     
-    rc_t _create_number_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned appId, unsigned value_type_flag, unsigned& uuid_ref, double min_val, double max_val, double step,  unsigned dec_pl )
+    rc_t _create_number_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned appId, unsigned value_type_flag, const char* title, unsigned& uuid_ref, double min_val, double max_val, double step,  unsigned dec_pl )
     {
       rc_t rc;
       
-      if((rc = uiCreateNumb( p->ioH, uuid_ref, widgetListUuId, nullptr, appId, kInvalidId, nullptr, nullptr, min_val, max_val, step, dec_pl )) != kOkRC )
+      if((rc = uiCreateNumb( p->ioH, uuid_ref, widgetListUuId, nullptr, appId, kInvalidId, nullptr, title, min_val, max_val, step, dec_pl )) != kOkRC )
       {
         rc = cwLogError(rc,"Integer widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
         goto errLabel;
@@ -100,10 +100,10 @@ namespace caw {
       return rc;
     }
 
-    rc_t _create_string_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref )
+    rc_t _create_string_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, const char* title, unsigned& uuid_ref )
     {
       rc_t rc = kOkRC;
-      if((rc = uiCreateStr( p->ioH, uuid_ref, widgetListUuId, nullptr, kStringWidgetId, kInvalidId, nullptr, nullptr )) != kOkRC )
+      if((rc = uiCreateStr( p->ioH, uuid_ref, widgetListUuId, nullptr, kStringWidgetId, kInvalidId, nullptr, title )) != kOkRC )
       {
         rc = cwLogError(rc,"String widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
         goto errLabel;        
@@ -113,11 +113,11 @@ namespace caw {
       return rc;
     }
 
-    rc_t _create_meter_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref, double min_val, double max_val )
+    rc_t _create_meter_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, const char* title, unsigned& uuid_ref, double min_val, double max_val )
     {
       rc_t rc = kOkRC;
 
-      if((rc = uiCreateProg(p->ioH, uuid_ref, widgetListUuId, nullptr, kMeterWidgetId, kInvalidId, nullptr, nullptr, min_val, max_val )) != kOkRC )
+      if((rc = uiCreateProg(p->ioH, uuid_ref, widgetListUuId, nullptr, kMeterWidgetId, kInvalidId, nullptr, title, min_val, max_val )) != kOkRC )
       {
         rc = cwLogError(rc,"Meter widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
         goto errLabel;
@@ -128,7 +128,7 @@ namespace caw {
     }
 
     
-    rc_t _create_list_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref )
+    rc_t _create_list_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, const char* title, unsigned& uuid_ref )
     {
       rc_t rc = kOkRC;
 
@@ -138,7 +138,7 @@ namespace caw {
         goto errLabel;
       }
 
-      if((rc = uiCreateSelect(  p->ioH, uuid_ref, widgetListUuId, nullptr, kListWidgetId, kInvalidId, nullptr, nullptr )) != kOkRC )
+      if((rc = uiCreateSelect(  p->ioH, uuid_ref, widgetListUuId, nullptr, kListWidgetId, kInvalidId, nullptr, title )) != kOkRC )
       {
         rc = cwLogError(rc,"List widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
         goto errLabel;
@@ -161,21 +161,15 @@ namespace caw {
       return rc;
     }
     
-    rc_t _create_var_label( ui_t* p, unsigned parentListUuId, const flow::ui_var_t* ui_var, const char* label, unsigned var_idx )
+    rc_t _create_var_label( ui_t* p, unsigned varLabelUuId, const flow::ui_var_t* ui_var, const char* label, unsigned var_idx )
     {
-      rc_t rc;
-      unsigned uuId;
-      if((rc = uiCreateStrDisplay( p->ioH, uuId, parentListUuId, nullptr, kInvalidId, kInvalidId, nullptr, label )) != kOkRC )
-      {
-        rc = cwLogError(rc,"Label widget create failed on '%s'.",cwStringNullGuard(ui_var->label));
-        goto errLabel;        
-        
-      }
-
-      // BUG: This currently does nothing because 'disp_str' elements do not change state when they are disabled.
-      if( (ui_var->desc_flags & flow::kInitVarDescFl) || ui_var->has_source_fl)
-        uiClearEnable(p->ioH, uuId );
+      rc_t rc = kOkRC;
       
+      if((rc = uiSetTitle( p->ioH, varLabelUuId, label)) != kOkRC )
+      {
+        rc = cwLogError(rc,"Label widget create failed on '%s'.",cwStringNullGuard(label));
+        goto errLabel;                
+      }
 
     errLabel:
       return rc;      
@@ -206,15 +200,6 @@ namespace caw {
         case flow::kStringTFl: widget_type_id_ref = kStringWidgetId; break;          
       }
 
-      /*
-      if( ui_var->ui_cfg == nullptr )
-      {
-        rc = cwLogError(rc,"Error locating 'var' '%s' on proc desc.",cwStringNullGuard(ui_var->label));
-        goto errLabel;
-      }
-      else
-      */
-      
       if( ui_var->ui_cfg != nullptr )
       {
         // get the type of this 'ui' widget
@@ -231,27 +216,30 @@ namespace caw {
           goto errLabel;
         }
       }
+
+      if( widget_type_id_ref == kInvalidId )
+      {
+        rc = cwLogError(kInvalidArgRC,"Unknown widget type for variable %s:%i.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+        goto errLabel;
+      }
+
       
     errLabel:
       return rc;
     }
     
     
-    rc_t _create_var_ui( ui_t* p, unsigned parentListUuId, const flow::ui_var_t* ui_var, unsigned var_idx )
+    rc_t _create_var_ui( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned var_idx, unsigned container_uuId, unsigned var_label_uuId )
     {
 
-      rc_t rc = kOkRC;
-      unsigned widgetListUuId  = kInvalidId;
-      unsigned varUuId         = kInvalidId;
-      unsigned widget_type_id  = kInvalidId;
-      unsigned widget_uuId     = kInvalidId;
+      rc_t                       rc             = kOkRC;
+      const char*                title          = nullptr;
+      unsigned                   varUuId        = kInvalidId;
+      unsigned                   widget_type_id = kInvalidId;
+      unsigned                   widget_uuId    = kInvalidId;
+      io_flow_ctl::io_var_arg_t* io_var_arg     = nullptr;
       
-      // insert the var panel
-      if((rc = uiCreateFromRsrc(   p->ioH, "var", parentListUuId, var_idx )) != kOkRC )
-      {
-        goto errLabel;
-      }
-
+      
       // if this is a blank panel 
       if( ui_var == nullptr )
         goto errLabel;
@@ -262,16 +250,10 @@ namespace caw {
         goto errLabel;
       }
 
-      
-      varUuId        = uiFindElementUuId( p->ioH, parentListUuId, kVarPanelId, var_idx );
-      widgetListUuId = uiFindElementUuId( p->ioH, varUuId, kWidgetListId, kInvalidId );
-
-      //printf("%i %i %i\n",var_idx, varUuId,widgetListUuId);
-      
       switch( widget_type_id )
       {
         case kCheckWidgetId:
-          rc = _create_bool_widget(p,widgetListUuId,ui_var,widget_uuId);
+          rc = _create_bool_widget(p,widgetListUuId,ui_var,title,widget_uuId);
           break;
 
         case kButtonWidgetId:
@@ -282,7 +264,7 @@ namespace caw {
           {
             int min_val = std::numeric_limits<int>::min();
             int max_val = std::numeric_limits<int>::max();
-            rc = _create_number_widget(p,widgetListUuId,ui_var, kIntWidgetId, flow::kIntTFl, widget_uuId, min_val, max_val, 1, 1 );
+            rc = _create_number_widget(p,widgetListUuId,ui_var, kIntWidgetId, flow::kIntTFl, title, widget_uuId, min_val, max_val, 1, 1 );
           }
           break;          
           
@@ -290,7 +272,7 @@ namespace caw {
           {
             unsigned min_val = 0;
             unsigned max_val = std::numeric_limits<unsigned>::max();
-            rc = _create_number_widget(p,widgetListUuId,ui_var, kUIntWidgetId, flow::kUIntTFl, widget_uuId, min_val, max_val, 1, 1 );
+            rc = _create_number_widget(p,widgetListUuId,ui_var, kUIntWidgetId, flow::kUIntTFl, title,widget_uuId, min_val, max_val, 1, 1 );
           }
           break;
 
@@ -298,7 +280,7 @@ namespace caw {
           {
             float min_val = std::numeric_limits<float>::min();
             float max_val = std::numeric_limits<float>::max();
-            rc = _create_number_widget(p,widgetListUuId,ui_var, kFloatWidgetId, flow::kFloatTFl, widget_uuId, min_val, max_val, 0.1, 2 );
+            rc = _create_number_widget(p,widgetListUuId,ui_var, kFloatWidgetId, flow::kFloatTFl, title, widget_uuId, min_val, max_val, 0.1, 2 );
           }
           break;
           
@@ -306,37 +288,29 @@ namespace caw {
           {
             double min_val = std::numeric_limits<float>::min();
             double max_val = std::numeric_limits<float>::max();
-            rc = _create_number_widget(p,widgetListUuId,ui_var, kDoubleWidgetId, flow::kDoubleTFl, widget_uuId, min_val, max_val, 0.1, 2 );
+            rc = _create_number_widget(p,widgetListUuId,ui_var, kDoubleWidgetId, flow::kDoubleTFl, title, widget_uuId, min_val, max_val, 0.1, 2 );
           }
           break;
 
         case kStringWidgetId:
-          rc = _create_string_widget(p,widgetListUuId,ui_var,widget_uuId);
+          rc = _create_string_widget(p,widgetListUuId,ui_var,title, widget_uuId);
           break;          
 
         case kMeterWidgetId:
           {
             double min_val = -100.0;
             double max_val = 0;
-            rc = _create_meter_widget(p,widgetListUuId,ui_var,widget_uuId,min_val,max_val);
+            rc = _create_meter_widget(p,widgetListUuId,ui_var,title,widget_uuId,min_val,max_val);
           }
           break;
 
         case kListWidgetId:
-          rc = _create_list_widget(p,widgetListUuId,ui_var,widget_uuId);
+          rc = _create_list_widget(p,widgetListUuId,ui_var,title,widget_uuId);
           break;          
           
         default:
-          {
-            /*
-            const char* type_label;
-            if((type_label = flow::value_type_flag_to_label(value_type_flag)) != nullptr )
-              cwLogWarning("No UI widgets for type:%s",type_label);
-            else
-            {
-              cwLogError(kInvalidArgRC,"The value type flag: 0x%x is not known. No UI widget was created.",value_type_flag);
-            }
-            */
+          {            
+            rc = cwLogError(rc,"Invalid widget type for variable %s:%i.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
             goto errLabel;
 
           }
@@ -348,18 +322,19 @@ namespace caw {
 
         // if this is a 'init' variable or connected to a source variable then disable it
         // (The UI should not be able to change the value of a var. that is being set by a source in the network.)
-        if( (ui_var->desc_flags & flow::kInitVarDescFl) || ui_var->disable_fl)
+        if( ui_var->disable_fl)
         {
           uiClearEnable(p->ioH, widget_uuId );
         }
 
-        if( ui_var->hide_fl )
-          uiSetVisible(p->ioH, widget_uuId, !ui_var->hide_fl );
-        
-
-        if((rc = set_variable_user_id( p->ioFlowH, ui_var, widget_uuId )) != kOkRC )
+        // Set the user-arg value in 
+        io_var_arg = mem::allocZ<io_flow_ctl::io_var_arg_t>();
+        io_var_arg->container_uuid = container_uuId;
+        io_var_arg->label_uuid     = var_label_uuId;
+        io_var_arg->widget_uuid    = widget_uuId;
+          
+        if((rc = set_variable_user_arg( p->ioFlowH, ui_var, io_var_arg )) != kOkRC )
           goto errLabel;
-
         
       }
 
@@ -400,119 +375,106 @@ namespace caw {
         unsigned uuId;
         if((rc = uiCreateOption(p->ioH, uuId, selUuId, nullptr, kProcPresetOptId, i, nullptr, ui_proc->desc->presetA[i].label )) != kOkRC )
         {
+          rc = cwLogError(rc,"UI option '%s' for a preset list create failed.", cwStringNullGuard(ui_proc->desc->presetA[i].label));
+          break;
         }
 
       }
-      
-      
       return rc;
     }
 
-    rc_t _create_var_list( ui_t* p, unsigned chanListUuId, const flow::ui_proc_t* ui_proc )
+    rc_t _create_var_list( ui_t* p, unsigned varListUuId, const flow::ui_proc_t* ui_proc )
     {
       rc_t           rc              = kOkRC;
-      unsigned       chN             = _calc_max_chan_count(ui_proc);
       const unsigned label_buf_charN = 127;
       char           label_buf[ label_buf_charN+1 ];
-      
-      
-      // for each channel (add one to the channel count to account for the leading 'label' column)
-      for(unsigned ui_ch_idx=0; ui_ch_idx<chN+1; ++ui_ch_idx)
+
+      // for each var
+      for(unsigned i=0; i<ui_proc->varN; ++i)
       {
-        unsigned varListUuId   = kInvalidIdx;
+        flow::ui_var_t* ui_var         = ui_proc->varA + i;
+        unsigned        var_mult_cnt   = var_mult_count( ui_proc->proc, ui_var->label);
+        unsigned        ch_cnt         = 0;
+        unsigned        varUuId        = kInvalidId;
+        unsigned        widgetListUuId = kInvalidId;
+        unsigned        varLabelUuId   = kInvalidId;
         
-        // add a varList to the chanList
-        if((rc = uiCreateFromRsrc( p->ioH, "chan", chanListUuId, ui_ch_idx )) != kOkRC )
+        // if the ui for this var is never created via the 'no_ui' attribute in the var class description
+        if( ui_var->desc_flags & flow::kUiCreateVarDescFl )
+          continue;
+
+        // only create controls for certain value types
+        if( !(ui_var->value_tid & (flow::kBoolTFl | flow::kIntTFl | flow::kUIntTFl | flow::kFloatTFl | flow::kDoubleTFl | flow::kStringTFl )))
+          continue;
+
+        switch( ui_var->ch_cnt )
+        {
+          case 0:           ch_cnt=1; break; // only contains one channel where ui_var->ch_idx==kAnyChIdx
+          case kInvalidCnt: ch_cnt=0; break; // no-channels
+          default:
+            ch_cnt = ui_var->ch_cnt; // 1=mono, 2=stereo ..
+           
+        }
+                
+        // insert the var panel
+        if((rc = uiCreateFromRsrc( p->ioH, "var", varListUuId, i )) != kOkRC )
         {
           goto errLabel;
         }
-      
-        varListUuId = uiFindElementUuId(p->ioH, chanListUuId, kVarListId, ui_ch_idx );
 
-        // for each var
-        for(unsigned j=0; j<ui_proc->varN; ++j)
+        varUuId = uiFindElementUuId(p->ioH, varListUuId, kVarPanelId, i );
+
+        // Get the var label and the widget list UUid's
+        varLabelUuId   = uiFindElementUuId(p->ioH, varUuId, kVarLabelId,   kInvalidId );
+        widgetListUuId = uiFindElementUuId(p->ioH, varUuId, kWidgetListId, kInvalidId );
+
+        label_buf[0] = '\0';
+        
+        for(unsigned ch_idx = 0; ch_idx<ch_cnt; ++ch_idx)
         {
-          flow::ui_var_t* ui_var = ui_proc->varA + j;
-          unsigned var_mult_cnt = var_mult_count( ui_proc->proc, ui_var->label);
-          
-          // if the ui for this var is disabled via the 'no_ui' attribute in the var class description
-          if( ui_var->desc_flags & flow::kUiCreateVarDescFl )
-            continue;
-
-          
-
-          // BUG BUG BUG: these flags should come from the instance not the description
-          ui_var->disable_fl = ui_var->new_disable_fl = cwIsFlag(ui_var->desc_flags, flow::kUiDisableVarDescFl );
-          ui_var->hide_fl    = ui_var->new_hide_fl    = cwIsFlag(ui_var->desc_flags, flow::kUiHideVarDescFl );
-
-          // only create controls for certain value types
-          if( !(ui_var->value_tid & (flow::kBoolTFl | flow::kIntTFl | flow::kUIntTFl | flow::kFloatTFl | flow::kDoubleTFl | flow::kStringTFl )))
-            continue;
-          
-          // if ui_ch_idx == 0 then create the var label ....
-          if( ui_ch_idx == 0 )
+          const char* title = nullptr;
+          if( ch_idx == 0 )
           {
-            if( ui_var->ch_idx == flow::kAnyChIdx )
+            if( var_mult_cnt <= 1 )
+              snprintf(label_buf,label_buf_charN,"%s",ui_var->title);
+            else
+              snprintf(label_buf,label_buf_charN,"%s:%i",ui_var->title,ui_var->label_sfx_id);
+
+            // create the var label
+            if((rc = _create_var_label(p, varLabelUuId, ui_var, label_buf, i)) != kOkRC )
             {
-              if( var_mult_cnt == 1 )
-                snprintf(label_buf,label_buf_charN,"%s",ui_var->label);
-              else
-                snprintf(label_buf,label_buf_charN,"%s:%i",ui_var->label,ui_var->label_sfx_id);
-              if((rc = _create_var_label(p,varListUuId, ui_var, label_buf, j)) != kOkRC )
-              {
-                goto errLabel;
-              }
+              goto errLabel;
             }
-            
           }
-          else // ... otherwise create the actual var UI
+
+          // create the var widget
+          if((rc = _create_var_ui(p, widgetListUuId, ui_var, i, varUuId, varLabelUuId)) != kOkRC )
           {
-
-            // subtract one from ui_ch_idx to account for the leading label column with is associated with ui_ch_idx==0
-            unsigned uiChIdx = ui_ch_idx - 1;
-            bool create_fl = false;
-            
-            // if this is the 'any' ch. var
-            if( ui_var->ch_idx == flow::kAnyChIdx  )
-            {
-              // if this 'any' ch. var has no other channels
-              if( ui_var->ch_cnt == 0 )
-              {
-                create_fl = true; // always create a control or a blank var
-                
-                // if the current ch. == 0 then create then control ...
-                if( ui_var->ch_cnt==0 && uiChIdx!=0 )
-                  ui_var = nullptr; // ... otherwise create a blank 
-              }
-                
-            }
-            else // otherwise create the var if it is on chan 'uiChIdx'
-            {
-              create_fl = ui_var->ch_idx == uiChIdx;
-            }
-
-            if( create_fl )
-            {              
-              if((rc = _create_var_ui(p, varListUuId, ui_var, j)) != kOkRC )
-              {
-                goto errLabel;
-              }
-            }
+            goto errLabel;
           }
         }
-      }
-    errLabel:
-      return rc;
-    }
 
+        // if the var is iniitally hidden
+        if( ui_var->hide_fl )
+          uiSetVisible(p->ioH, varUuId, false );
+
+        // if the var is initially disabled
+        if( ui_var->disable_fl )
+          uiSetEnable(p->ioH, varUuId, false );
+      }
+      
+      errLabel:
+        return rc;
+    }
+    
+    
     rc_t _create_net_ui( ui_t* p, unsigned netParentUuId, const flow::ui_net_t* ui_net, const char* label_prefix );
 
     rc_t _create_proc_ui( ui_t* p, unsigned netParentUuId, unsigned parentListUuId, const flow::ui_proc_t* ui_proc, unsigned proc_idx )
     {
       rc_t           rc              = kOkRC;
       unsigned       procPanelUuId   = kInvalidId;
-      unsigned       chanPanelUuId   = kInvalidId;
-      unsigned       chanListUuId    = kInvalidId;
+      unsigned       varListPanelUuId = kInvalidId;
       const unsigned label_buf_charN = 127;
       char           label_buf[ label_buf_charN+1 ];
 
@@ -524,11 +486,9 @@ namespace caw {
         goto errLabel;
       }
 
-      procPanelUuId  =  uiFindElementUuId( p->ioH, parentListUuId, kProcPanelId,   proc_idx );
-      chanPanelUuId  =  uiFindElementUuId( p->ioH, procPanelUuId, kChanPanelId,   kInvalidId );
-      chanListUuId   =  uiFindElementUuId( p->ioH, chanPanelUuId, kChanListId,   kInvalidId );
-      //printf("proc_idx: %i %i %i : %i %i\n",proc_idx, parentListUuId, procPanelUuId,chanPanelUuId,chanListUuId);
-
+      procPanelUuId    = uiFindElementUuId( p->ioH, parentListUuId, kProcPanelId,   proc_idx );
+      varListPanelUuId = uiFindElementUuId( p->ioH, procPanelUuId, kVarListPanelId,   kInvalidId );
+      
       // set the proc title
       snprintf(label_buf,label_buf_charN,"%s %s:%i",ui_proc->desc->label,ui_proc->label,ui_proc->label_sfx_id);      
       uiSendValue( p->ioH, uiFindElementUuId(p->ioH, procPanelUuId, kProcInstLabelId, kInvalidId), label_buf );
@@ -537,7 +497,7 @@ namespace caw {
       //{
       //}
 
-      if((rc = _create_var_list(p, chanListUuId, ui_proc )) != kOkRC )
+      if((rc = _create_var_list(p, varListPanelUuId, ui_proc )) != kOkRC )
         goto errLabel;
 
       if( ui_proc->internal_net )
@@ -577,7 +537,6 @@ namespace caw {
       procListUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kProcListId, kInvalidId );
 
       //printf("netlist:%i title:%i netpanel:%i proclist:%i : poly_idx:%i\n",netListUuId, netTitleUuId, netPanelUuId, procListUuId, ui_net->poly_idx);
-
 
       if( title != nullptr )
       {

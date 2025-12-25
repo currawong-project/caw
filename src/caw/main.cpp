@@ -102,14 +102,11 @@ ui::appIdMap_t  appIdMapA[] = {
 
   { kProcPanelId,    kProcInstLabelId,   "procInstLabel" },
   { kProcPanelId,    kProcPresetSelId,   "procPresetSelId" },
-  { kProcPanelId,    kChanPanelId,       "chanPanelId" },
-  { kChanPanelId,    kChanListId,        "chanListId" },
-
-
-  { kChanListId,     kVarListId,     "varListId" },
-  { kVarListId,      kVarPanelId,    "varPanelId" },
-
-  { kVarPanelId,    kWidgetListId,  "widgetListId" },
+  
+  { kProcPanelId,    kVarListPanelId, "varListPanelId" },    
+  { kVarListPanelId, kVarPanelId,     "varPanelId" },
+  { kVarPanelId,     kVarLabelId,     "varLabelId" },
+  { kVarPanelId,     kWidgetListId,   "widgetListId" },
 
 };
 

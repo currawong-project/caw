@@ -1,48 +1,51 @@
 
 .netList {
-    border: 1px solid red;
+    /*border: 1px solid red;*/
 }
 
 .netPanel {
 
-    border: 1px solid blue;
+    /*border: 1px solid blue;*/
 
+}
+
+.procList {
+    display: block;
+    column-width: 200px;        /* or column-count: 3 */
+    column-count: 5;
+    column-gap: 2px;    
 }
 
 .procPanel {
-    border: 1px solid Blue;
     padding: 10px 10px;
+    break-inside: avoid;
+    margin-bottom: 2px;
+    border: 1px solid lightcyan;
 }
-
-.chanPanel {
-    border: 1px solid Yellow;
-
-    /*height: 100px;*/ 
-    overflow-x: hidden; /* 'hidden' to remove horz scroll bar */
-    overflow-y: auto; 
-    
-}
-
-.chanList {
-    display: flex;
-    flex-direction: row;
-}
-    
 
  
-.varList {
-     display: flex;
-     flex-direction: column;
-     overflow-y: hidden;          
+.varListPanel {
+    border: 1px solid black;
+
+    display: flex;
+    flex-direction: column;
+    overflow-y: hidden;          
 }
 
-.varList > div {
-    padding-top: 3px;
-	    
-}
 
-.varPanel {
+.varPanel .uiRow {
     height: 20px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    border-bottom: 1px solid lightcyan;
+}
+
+.varLabel {
+    background-color: LightBlue !important;
+}
+
+.widgetList {
 }
 
 

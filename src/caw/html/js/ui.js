@@ -222,7 +222,7 @@ function ui_create_ctl( parent_ele, ele_type, label, d, dfltEleClassName )
     
     var label_ele = div_ele
     
-    // if label is not null then create an enclosing 'label' element
+    // if label is not null then create a 'label' element
     if( label != null )
     {
 	label = label.trim();
@@ -381,8 +381,8 @@ function ui_select_set_from_option_app_id( sel_ele, option_appId )
 function ui_create_select( parent_ele, d )
 {
     var ele = ui_create_ctl( parent_ele, "select", d.title, d, "uiSelect" );
-    ele.onchange = function() { ui_on_select(this) }
-    //ele.onclick  = function() { ui_on_select(this) }
+    //ele.onchange = function() { ui_on_select(this) }
+    ele.onclick  = function() { ui_on_select(this) }
     
     if( !d.hasOwnProperty('value') )
     {
@@ -449,6 +449,7 @@ function ui_create_str_display( parent_ele, d )
     
     if( ele != null )
     {
+	ele.className += " enable_able"
 	if( d.hasOwnProperty('value') )
 	{
 	    ui_set_str_display(ele.id, d.value);
@@ -919,6 +920,27 @@ function ui_set_visible( ele, enableFl )
 function ui_set_enable( ele, enableFl )
 {
     ele.disabled = !enableFl
+
+    if( ele.className.includes("enable_able")  )
+    {
+	if( enableFl )
+	{
+	    ele.className = ele.className.replace("text_disabled","text_enabled")
+	    
+	    if(!ele.className.includes("text_enabled"))
+		 ele.className += " text_enabled"
+	    
+	}
+	else
+	{
+	    ele.className = ele.className.replace("text_enabled","text_disabled")
+	    
+	    if(!ele.className.includes("text_disabled"))
+		ele.className += " text_disabled"
+	    
+	}
+    }
+    
 }
 
 function ui_set_order_key(ele, orderKey)

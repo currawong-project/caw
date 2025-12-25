@@ -35,12 +35,10 @@ namespace caw {
       kProcInstLabelId,
       kProcPresetSelId,
       kProcPresetOptId,
-      kChanListId,
-      
-      kChanPanelId,
-      kVarListId,
+      kVarListPanelId,
       
       kVarPanelId,
+      kVarLabelId,
       kWidgetListId,
 
       kButtonWidgetId,
