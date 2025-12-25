@@ -96,7 +96,7 @@ label {
     display:flex;
     flex-direction: column;
 
-    height: 500px;
+    height: 600px;
     overflow-x: hidden; /* 'hidden' to remove x scroll bar */
     overflow-y: auto; 
     width: 100%;

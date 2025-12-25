@@ -362,6 +362,7 @@ function ui_create_check( parent_ele, d )
 //
 function ui_on_select( ele )
 {
+    //console.log("SELECT:"+ele.options[ ele.selectedIndex ].appId)
     ui_send_int_value(ele,ele.options[ ele.selectedIndex ].appId);
 }
 
