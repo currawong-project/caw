@@ -640,6 +640,12 @@ Notice that the `mix` processor  instantiates two stereo input channels in the `
 and then assigns initial gain values to each individual channel. If a scalar value was given instead of a
 list (e.g. `igain0:0.8`) then the scalar value would be assigned to all channels
 
+TODO:
+- Document the use of the variable description attribute `mult_ref` to automatically expand `igain`
+to the same 'mult' cardinality of `in`. Notice that `args:{ igain_:0.25 }` will automatically
+set the input gain of all channels of all `igain` variables to 0.25.
+
+
 ### Example 09: Polyphonic subnet
 
 This example introduces the __poly__ construct.  In previous examples when the
@@ -926,6 +932,25 @@ user_defined_proc_12 : {
 See the sampler wavetable.
 
 
+### Example 14: User Interface Parameters:
+
+#### Class Variables:
+
+Proc class UI attributes:
+
+Label             | Description
+------------------|------------------------------------------------------------------
+`no_ui`           | Do not create a UI component for this variable.
+`ui_disable`      | Show the UI variable as disabled.
+`ui_hide`         | Default this variable to the hidden state.
+
+#### Instance Variables:
+
+These are parameters that are set inside a proc instance `ui:{ ... }` statement.
+
+Label            |
+-----------------|-------------------------------------------------------------------------
+`create_fl`      | 'true/false' show/hide the user interface for this proc instance.
 
 
 ### Appendix:
@@ -939,8 +964,9 @@ Label                 | Description
 `sample_rate`         | Default system audio sample rate.
 `max_cycle_count`     | Maximum count of network cycles to execute in non-real-time mode.
 `dur_limit_secs`      | Set `max_cycle_count` as (`sample_rate` * `dur_limit_secs`)/`frames_per_cycle`.
-`print_class_dict_fl` | 
-`print_network_fl`    |
+`ui_create_fl`        | Defaults to 'false' but is automatically set to true if any of the proc instances in the network have `ui:{ create_fl=true }`.
+`print_class_dict_fl` | Print the proc. description dictionary to the console.
+`print_network_fl`    | Print the network structure information to the console.
 
 
 #### `log:{...}` statement data type abbreviations:
