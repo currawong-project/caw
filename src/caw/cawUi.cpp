@@ -234,7 +234,6 @@ namespace caw {
 
       rc_t                       rc             = kOkRC;
       const char*                title          = nullptr;
-      unsigned                   varUuId        = kInvalidId;
       unsigned                   widget_type_id = kInvalidId;
       unsigned                   widget_uuId    = kInvalidId;
       io_flow_ctl::io_var_arg_t* io_var_arg     = nullptr;
@@ -335,6 +334,17 @@ namespace caw {
           
         if((rc = set_variable_user_arg( p->ioFlowH, ui_var, io_var_arg )) != kOkRC )
           goto errLabel;
+
+        // if the var is iniitally hidden
+        if( ui_var->hide_fl )          
+          uiSetVisible(p->ioH, container_uuId, false );
+        
+        // if the var is initially disabled
+        if( ui_var->disable_fl )
+        {
+          uiSetEnable(p->ioH, widget_uuId, false );
+          uiSetEnable(p->ioH, var_label_uuId, false );
+        }
         
       }
 
@@ -432,7 +442,6 @@ namespace caw {
         
         for(unsigned ch_idx = 0; ch_idx<ch_cnt; ++ch_idx)
         {
-          const char* title = nullptr;
           if( ch_idx == 0 )
           {
             if( var_mult_cnt <= 1 )
@@ -454,13 +463,6 @@ namespace caw {
           }
         }
 
-        // if the var is iniitally hidden
-        if( ui_var->hide_fl )
-          uiSetVisible(p->ioH, varUuId, false );
-
-        // if the var is initially disabled
-        if( ui_var->disable_fl )
-          uiSetEnable(p->ioH, varUuId, false );
       }
       
       errLabel:
