@@ -54,9 +54,9 @@ rc_t test( const object_t* cfg, int argc, char* argv[] );
 typedef struct app_str
 {
   object_t*             flow_cfg;           // flow program cfg
-  object_t*             io_cfg;             //  IO lib cfg.
+  object_t*             io_cfg;             // IO lib cfg.
   unsigned              cmd_line_action_id; // kUiSelId | kExecSelId | kTestSelId ....
-  const char*           cmd_line_pgm_fname; // pgm file passed from the comman dline
+  const char*           cmd_line_pgm_fname; // pgm file passed from the command line
   const char*           cmd_line_pgm_label; // pgm label passed from the command line 
   unsigned              pgm_preset_idx;     // currently selected pgm preset
   
@@ -117,6 +117,53 @@ void print( void* arg, const char* text )
   printf("%s\n",text);
 }
 
+rc_t _tracer_start( app_t& app )
+{
+  rc_t rc = kOkRC;
+
+  if( app.flow_cfg == nullptr )
+    goto errLabel;
+
+  // read the tracer cfg. record.
+  if((rc = app.flow_cfg->getv_opt("tracer", app.tracer_cfg )) != kOkRC )
+  {
+    rc = cwLogError(rc,"An error occurred accessing the caw 'tracer' cfg. field.");
+    goto errLabel;
+  }
+  
+  // if a tracer cfg. was given
+  if(app.tracer_cfg != nullptr )
+  {
+    if((rc = tracer::create(app.tracerH,app.tracer_cfg)) == kOkRC )
+      set_global_handle(app.tracerH);  
+  }
+
+errLabel:
+  if( rc != kOkRC )
+    rc = cwLogError(rc,"Tracer instantiation failed.");
+                    
+  return rc;  
+}
+
+rc_t _tracer_terminate( app_t& app )
+{
+  rc_t rc = kOkRC;
+  
+  if( app.tracerH.isValid() )
+  {
+    if((rc = write(app.tracerH)) != kOkRC )
+      cwLogError(rc,"Tracer write failed.");
+    
+    if((rc = destroy(app.tracerH)) != kOkRC )
+      rc = cwLogError(rc,"Tracer destroy failed.");
+    
+  }
+
+  app.tracer_cfg = nullptr;
+  
+  return rc;
+}
+
 rc_t _run_test_suite(int argc, const char** argv)
 {
   rc_t rc = kOkRC;
@@ -172,25 +219,30 @@ errLabel:
   return rc;
 }
 
+// The program is initialized asynchronously from this thread func. to prevent
+// the app. from blocking while the program is initialized.
 rc_t _load_pgm_thread_func( void* arg )
 {
   rc_t rc = kOkRC;
   app_t* app = (app_t*)arg;
   
   const flow::ui_net_t* ui_net = nullptr;
-  
+
+  // Initialize the loaded program.
   if((rc = program_initialize(app->ioFlowH, app->pgm_preset_idx )) != kOkRC )
   {
     rc = cwLogError(rc,"Network initialization failed.");
     goto errLabel;
   }
 
+  // Get the loaded programs network UI description.
   if((ui_net = program_ui_net(app->ioFlowH)) == nullptr )
   {
     rc = cwLogError(rc,"Network UI description initialization failed.");
     goto errLabel;      
   }
 
+  // 
   if((rc = caw::ui::create(app->uiH, app->ioH, app->ioFlowH, ui_net )) != kOkRC )
   {
     rc = cwLogError(rc,"Network UI create failed.");
@@ -235,38 +287,28 @@ errLabel:
   return rc;
 }
 
-
-rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
+rc_t _do_pgm_select(app_t* app, unsigned pgm_idx )
 {
   rc_t rc = kOkRC;
-
-  unsigned pgm_idx          = kInvalidIdx;
   unsigned pgmPresetSelUuId = io::uiFindElementUuId( app->ioH, kPgmPresetSelId );
   unsigned pgmLoadBtnUuId   = io::uiFindElementUuId( app->ioH, kPgmLoadBtnId );
   unsigned pgmPrintBtnUuId  = io::uiFindElementUuId( app->ioH, kPgmPrintBtnId );
   unsigned runCheckUuId     = io::uiFindElementUuId( app->ioH, kRunCheckId );
   unsigned preset_cnt       = 0;
-
-  if( !(kPgmBaseSelId <= pgmSelOptId && pgmSelOptId <= kPgmMaxSelId ) )
-  {
-    rc = cwLogError(kInvalidStateRC,"An invalid pgm select id was encountered.");
-    goto errLabel;
-  }
-
+  
   // empty the contents of the preset select menu
   if((rc = uiEmptyParent(app->ioH,pgmPresetSelUuId)) != kOkRC )
   {
     rc = cwLogError(rc,"The program preset menu clear failed.");
     goto errLabel;
   }
-
+  
   uiSetEnable( app->ioH, pgmPresetSelUuId, false );  // Disable the preset menu and load btn in anticipation of error.
   uiSetEnable( app->ioH, pgmLoadBtnUuId,   false );  //
   uiSetEnable( app->ioH, pgmPrintBtnUuId,  false );  //
   uiSetEnable( app->ioH, runCheckUuId,     false );  //
   app->pgm_preset_idx = kInvalidIdx;                 // The preset menu is empty and so there can be no valid preset selected.
 
-  pgm_idx             = pgmSelOptId - kPgmBaseSelId; // Calc the ioFlowCtl preset index of the selected preset.
 
   // load the program
   if((rc = program_load(app->ioFlowH, pgm_idx )) != kOkRC )
@@ -300,6 +342,25 @@ errLabel:
   return rc;
 }
 
+rc_t _on_pgm_select(app_t* app, unsigned pgmSelOptId )
+{
+  rc_t rc = kOkRC;
+
+  unsigned pgm_idx          = kInvalidIdx;
+
+  if( !(kPgmBaseSelId <= pgmSelOptId && pgmSelOptId <= kPgmMaxSelId ) )
+  {
+    rc = cwLogError(kInvalidStateRC,"An invalid pgm select id was encountered.");
+    goto errLabel;
+  }
+
+  pgm_idx             = pgmSelOptId - kPgmBaseSelId; // Calc the ioFlowCtl preset index of the selected preset.
+  
+  rc = _do_pgm_select(app,pgm_idx);
+errLabel:
+  return rc;
+}
+
 rc_t _on_pgm_preset_select( app_t* app, unsigned pgmPresetSelOptId )
 {
   rc_t rc = kOkRC;
@@ -325,13 +386,14 @@ errLabel:
   return rc;
 }
 
+// 'Load' button handler.
 rc_t _on_pgm_load(app_t* app )
 {
   rc_t rc = kOkRC;
   
   if( !program_is_initialized( app->ioFlowH) )
   {
-    // Load the program in a separate thread so that we can see the log messages as they occur.
+    // Initialize the program in a separate thread so that we can see the log messages as they occur.
     // Without async load the program is blocked until the load is complete.
     // When _load_pgm_thread_func() is complete _on_load_pgm_thread_complete() is called.
     bool asyncResponseFl = true;
@@ -360,6 +422,10 @@ rc_t _on_pgm_run( app_t* app, bool run_check_fl )
 {
   rc_t rc = kOkRC;
 
+  unsigned checkbox_uuid = io::uiFindElementUuId(app->ioH,kRunCheckId);
+  io::uiSetTitle(app->ioH,checkbox_uuid, run_check_fl ? "Off" : "On" );
+  io::uiSendValue(app->ioH,checkbox_uuid,run_check_fl);
+  
   app->run_fl = run_check_fl;
 
   if( !run_check_fl )
@@ -386,7 +452,6 @@ rc_t _on_ui_init( app_t* app )
       rc = cwLogError(rc,"Error on populating the program select widget.");
       goto errLabel;
     }
-
   }
 
   if( pgm_cnt )
@@ -429,9 +494,125 @@ errLabel:
   {
     rc = cwLogError(rc,"Echo failed for '%s:%i'-'%s:%i'.",cwStringNullGuard(ui_var->ui_proc->label),ui_var->ui_proc->label_sfx_id,cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
   }
-  
+
   return rc;
 }
+
+rc_t _on_reload_cfg_file(app_t* app)
+{
+  rc_t     rc;
+  unsigned pgmSelUuId       = io::uiFindElementUuId( app->ioH, kPgmSelId );
+  unsigned pgmPresetSelUuId = io::uiFindElementUuId( app->ioH, kPgmPresetSelId );
+  unsigned pgm_index        = kInvalidIdx;
+  bool     pgm_init_fl      = false;
+  char*    pgm_title        = nullptr;
+  
+  cwLogInfo("Reload:Tear-down");
+
+  // Stop IO callbacks
+  _on_pgm_run( app, false );
+
+  // Get the name of the current program so that it can be reloaded after the cfg. file is reloaded
+  if((pgm_index = program_current_index(app->ioFlowH)) != kInvalidIdx )
+  {
+    if(program_title(app->ioFlowH,pgm_index) != nullptr )
+    {
+      pgm_title = mem::duplStr(program_title(app->ioFlowH,pgm_index));
+
+      // store the current initialization state 
+      pgm_init_fl = program_is_initialized(app->ioFlowH);
+    }
+    
+  }
+
+  // Destroy the current UI
+  if((rc = caw::ui::destroy( app->uiH )) != kOkRC )
+  {
+    goto errLabel;
+  }
+
+  // Clear the pgm and preset drop-down menus
+  uiClearSelect(app->ioH,pgmSelUuId);
+  uiClearSelect(app->ioH,pgmPresetSelUuId);
+  
+  // Unload the the program
+  if((rc = io_flow_ctl::unload(app->ioFlowH)) != kOkRC )
+  {
+    goto errLabel;
+  }
+
+  // terminate the tracer
+  _tracer_terminate(*app);
+  
+  // Free the current pgm cfg. object
+  if( app->flow_cfg != nullptr )
+  {
+    app->flow_cfg->free();
+    app->flow_cfg = nullptr;
+  }
+
+  cwLogInfo("Reload:Loading");
+  
+  // Parse the cfg. file
+  if((rc = objectFromFile(app->cmd_line_pgm_fname,app->flow_cfg)) != kOkRC )
+  {
+    rc = cwLogError(rc,"Parsing failed on the cfg. file '%s'.",cwStringNullGuard(app->cmd_line_pgm_fname));
+    goto errLabel;
+  }
+
+  // if the tracer is enabled then start it
+  if((rc = _tracer_start(*app)) != kOkRC )
+  {
+    goto errLabel;
+  }
+
+  // Load the cfg file into ioFlowCtl
+  if((rc = io_flow_ctl::load(app->ioFlowH,app->flow_cfg)) != kOkRC )
+  {
+    rc = cwLogError(rc,"Parsing failed on the cfg. file '%s'.",cwStringNullGuard(app->cmd_line_pgm_fname));
+    goto errLabel;    
+  }
+
+  // Setup the UI based on the reloaded file
+  if((rc = _on_ui_init( app )) != kOkRC )
+  {
+    goto errLabel;
+  }
+
+  // If there was no program 
+  if( pgm_title == nullptr )
+    goto errLabel;
+
+  cwLogInfo("Reload:Initializing");
+
+  // Attempt to get the index of the originally loaded program 
+  if((pgm_index = program_index( app->ioFlowH, pgm_title)) == kInvalidIdx )
+  {
+    cwLogWarning("The original program '%s' could not be found in the reloaded cfg. file.",pgm_title);
+    goto errLabel;
+  }
+  
+  // Attempt to reload the program
+  if((rc = _do_pgm_select(app, pgm_index )) != kOkRC )
+  {
+    rc = cwLogError(rc,"The program '%s' reload failed.",pgm_title);
+    goto errLabel;    
+  }
+
+  // If the program was originally initialized - then init. it again.
+  if( pgm_init_fl )
+    rc = _on_pgm_load(app);
+  
+errLabel:
+  if( rc != kOkRC )
+    rc = cwLogError(rc,"Reload failed on '%s",cwStringNullGuard(app->cmd_line_pgm_fname));
+
+  mem::release(pgm_title);
+  cwLogInfo("Reload:Complete");
+  
+  return rc;  
+}
+
 
 rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
 {
@@ -458,10 +639,11 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       latency_measure_setup(app->ioH);
       break;
 
-    case kReloadIoBtnId:
+    case kReloadIoBtnId:      
       break;
 
     case kReloadPgmBtnId:
+      _on_reload_cfg_file(app);
       break;
       
     case kPgmSelId:
@@ -481,7 +663,6 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       break;
       
     case kRunCheckId:
-      io::uiSetTitle(app->ioH,m.uuId,m.value->u.b ? "Off" : "On" );
       _on_pgm_run(app,m.value->u.b);
       break;
 
@@ -646,8 +827,7 @@ rc_t _ui_callback( app_t* app, const io::ui_msg_t& m )
       // fall through
     default:
       assert(0);
-      break;
-        
+      break;   
   }
 
   return rc;
@@ -787,12 +967,6 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
       goto errLabel;
     }
 
-    // read the tracer cfg. record.
-    if((rc = app.flow_cfg->getv_opt("tracer", app.tracer_cfg )) != kOkRC )
-    {
-      goto errLabel;
-    }
-
     // parse the IO cfg file
     if((rc = objectFromFile(io_cfg_fn,app.io_cfg)) != kOkRC )
     {
@@ -882,20 +1056,18 @@ int main( int argc, char* argv[] )
 
   // seed the random number generator with the time
   std::srand(static_cast<unsigned int>(std::time(0)));
-  
+
+  // create the log
   cw::log::createGlobal(log::kPrint_LogLevel,_log_output_func,&app);
 
   unsigned appIdMapN = sizeof(appIdMapA)/sizeof(appIdMapA[0]);
 
+  // parse the command line and the cfg. file
   if((rc= _parse_main_cfg(app, argc, argv )) != kOkRC )
     goto errLabel;
 
-  if(app.tracer_cfg != nullptr )
-  {
-    if((rc = tracer::create(app.tracerH,app.tracer_cfg)) == kOkRC )
-      set_global_handle(app.tracerH);
-      
-  }
+  // start the tracer
+  _tracer_start(app);
 
   switch( app.cmd_line_action_id )
   {
@@ -977,12 +1149,7 @@ errLabel:
   if((rc = destroy(app.uiH)) != kOkRC )
     rc = cwLogError(rc,"UI destroy failed.");
 
-  if( app.tracerH.isValid() )
-  {
-    write(app.tracerH);
-    if((rc = destroy(app.tracerH)) != kOkRC )
-      rc = cwLogError(rc,"Tracer destroy failed.");
-  }
+  _tracer_terminate(app);
 
   if( app.io_cfg != nullptr )
     app.io_cfg->free();
