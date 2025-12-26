@@ -963,8 +963,11 @@ Label                 | Description
 `frames_per_cycle`    | Count of audio sample frames per network execution cycle.
 `sample_rate`         | Default system audio sample rate.
 `max_cycle_count`     | Maximum count of network cycles to execute in non-real-time mode.
+`ui_update_ms`        | Milliseconds between UI updates while the network is running.
 `dur_limit_secs`      | Set `max_cycle_count` as (`sample_rate` * `dur_limit_secs`)/`frames_per_cycle`.
 `ui_create_fl`        | Defaults to 'false' but is automatically set to true if any of the proc instances in the network have `ui:{ create_fl=true }`.
+`preset`              | Set a network preset to be applied when the network is created.
+`profile_fl`          | Enable the network profiler.
 `print_class_dict_fl` | Print the proc. description dictionary to the console.
 `print_network_fl`    | Print the network structure information to the console.
 
