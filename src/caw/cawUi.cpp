@@ -393,6 +393,19 @@ namespace caw {
       return rc;
     }
 
+    const flow::ui_var_t* _find_ui_var( const flow::ui_proc_t* ui_proc, const char* label, unsigned label_sfx_id, unsigned ch_idx )
+    {
+      for(unsigned i=0; i<ui_proc->varN; ++i)
+      {
+        const flow::ui_var_t* ui_var = ui_proc->varA + i;
+        if( cw::textIsEqual(label,ui_var->label) && ui_var->label_sfx_id == label_sfx_id && ui_var->ch_idx == ch_idx )
+          return ui_var;
+          
+      }
+     
+      return nullptr;
+    }
+
     rc_t _create_var_list( ui_t* p, unsigned varListUuId, const flow::ui_proc_t* ui_proc )
     {
       rc_t           rc              = kOkRC;
@@ -408,6 +421,10 @@ namespace caw {
         unsigned        varUuId        = kInvalidId;
         unsigned        widgetListUuId = kInvalidId;
         unsigned        varLabelUuId   = kInvalidId;
+
+        // 
+        if( ui_var->ch_idx != flow::kAnyChIdx )
+          continue;
         
         // if the ui for this var is never created via the 'no_ui' attribute in the var class description
         if( ui_var->desc_flags & flow::kUiCreateVarDescFl )
@@ -416,7 +433,7 @@ namespace caw {
         // only create controls for certain value types
         if( !(ui_var->value_tid & (flow::kBoolTFl | flow::kIntTFl | flow::kUIntTFl | flow::kFloatTFl | flow::kDoubleTFl | flow::kStringTFl )))
           continue;
-
+        
         switch( ui_var->ch_cnt )
         {
           case 0:           ch_cnt=1; break; // only contains one channel where ui_var->ch_idx==kAnyChIdx
@@ -426,7 +443,7 @@ namespace caw {
            
         }
                 
-        // insert the var panel
+        // insert the var panel which contains the label and widget list.
         if((rc = uiCreateFromRsrc( p->ioH, "var", varListUuId, i )) != kOkRC )
         {
           goto errLabel;
@@ -438,29 +455,41 @@ namespace caw {
         varLabelUuId   = uiFindElementUuId(p->ioH, varUuId, kVarLabelId,   kInvalidId );
         widgetListUuId = uiFindElementUuId(p->ioH, varUuId, kWidgetListId, kInvalidId );
 
+        if( var_mult_cnt <= 1 )
+          snprintf(label_buf,label_buf_charN,"%s",ui_var->title);
+        else
+          snprintf(label_buf,label_buf_charN,"%s:%i",ui_var->title,ui_var->label_sfx_id);
+
+        // create the var label
+        if((rc = _create_var_label(p, varLabelUuId, ui_var, label_buf, i)) != kOkRC )
+        {
+          goto errLabel;
+        }
+        
         label_buf[0] = '\0';
         
         for(unsigned ch_idx = 0; ch_idx<ch_cnt; ++ch_idx)
         {
-          if( ch_idx == 0 )
-          {
-            if( var_mult_cnt <= 1 )
-              snprintf(label_buf,label_buf_charN,"%s",ui_var->title);
-            else
-              snprintf(label_buf,label_buf_charN,"%s:%i",ui_var->title,ui_var->label_sfx_id);
+          const flow::ui_var_t* ui_chan_var = ui_var; 
 
-            // create the var label
-            if((rc = _create_var_label(p, varLabelUuId, ui_var, label_buf, i)) != kOkRC )
+          // if ui_var->ch_cnt == 0 only the kAnyChIdx channel exists (which is the var pointed to by ui_var)
+          // otherwise we find a numbered channel var according to ch_idx
+          if( ui_var->ch_cnt != 0 )
+          {
+            // Locate the ui_var associated with this channel
+            if((ui_chan_var = _find_ui_var( ui_proc, ui_var->label, ui_var->label_sfx_id, ch_idx )) == nullptr )
             {
+              rc = cwLogError(kInvalidStateRC,"The channel variable for '%s:%i' ch:%i could not be found.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id,ch_idx);
               goto errLabel;
             }
           }
-
+          
           // create the var widget
-          if((rc = _create_var_ui(p, widgetListUuId, ui_var, i, varUuId, varLabelUuId)) != kOkRC )
+          if((rc = _create_var_ui(p, widgetListUuId, ui_chan_var, i, varUuId, varLabelUuId)) != kOkRC )
           {
             goto errLabel;
           }
+          
         }
 
       }
