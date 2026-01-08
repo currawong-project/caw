@@ -173,6 +173,8 @@ rc_t _run_test_suite(int argc, const char** argv)
     rc = cwLogError(kInvalidArgRC,"The command line is invalid for running the test suite.");
     goto errLabel;
   }
+
+  log::set_flags( log::globalHandle(), cwClrFlag(log::flags(log::globalHandle() ),log::kConsoleFl) );
   
   rc = test::test(argv[0],argc,argv);
 
@@ -917,6 +919,135 @@ void _print_command_line_help()
   
 }
 
+void _log_output_func( void* arg, unsigned level, const char* text )
+{
+  app_t*   app     = (app_t*)arg;
+
+  if( app->ioH.isValid() && is_started_flag(app->ioH) )
+  {  
+    unsigned logUuId = uiFindElementUuId( app->ioH, kLogId);
+  
+    uiSetLogLine( app->ioH, logUuId, text );
+  }
+}
+
+// log: { flags:[ date_time, file_out, console, skip_queue, overwrite_file ], level:debug, log_filename:"log.txt", queue_blk_cnt:16, queue_blk_byte_cnt:4096 }
+
+rc_t _parse_log_args( const object_t* log_cfg, log::log_args_t& log_args )
+{
+  rc_t            rc       = kOkRC;
+  const object_t* flagsL   = nullptr;
+  unsigned        flagsN   = 0;
+  const char*     levelStr = nullptr;
+  const object_t* flag_cfg = nullptr;
+  
+
+  idLabelPair_t flagRefA[] = {
+    { log::kDateTimeFl,      "date_time"},
+    { log::kFileOutFl,       "file_out"},
+    { log::kConsoleFl,       "console"},
+    { log::kSkipQueueFl,     "skip_queue"},
+    { log::kOverwriteFileFl, "overwrite_file"},
+    { log::kNoFlags,         "<invalid>"}
+  };
+  
+  if((rc = log_cfg->readv("flags",              kOptFl, flagsL,
+                          "level",              kOptFl, levelStr,
+                          "log_filename",       kOptFl, log_args.log_fname,
+                          "queue_blk_cnt",      kOptFl, log_args.queueBlkCnt,
+                          "queue_blk_byte_cnt", kOptFl, log_args.queueBlkByteCnt)) != kOkRC )
+  {
+    rc = cwLogError(rc,"Log parameter parsing failed.");
+    goto errLabel;
+  }
+
+  //
+  // Parse the log level
+  //
+  log_args.level = log::kInvalid_LogLevel;
+    
+  if( levelStr != nullptr )
+    log_args.level = log::levelFromString(levelStr);
+
+  if( log_args.level == log::kInvalid_LogLevel)
+    log_args.level = log::kDefault_LogLevel;
+
+
+  //
+  // Parse the flags list
+  //
+  log_args.flags = log::kNoFlags;
+
+  while( flagsL!=nullptr && (flag_cfg = flagsL->next_child_ele(flag_cfg)) != nullptr )
+  {
+    const char*     flag_str = nullptr;
+    
+    if( flag_cfg->is_string() && flag_cfg->value(flag_str)==kOkRC && flag_str!=nullptr )
+    {
+      unsigned flag;
+      if((flag = labelToId( flagRefA, flag_str, log::kNoFlags )) == log::kNoFlags)
+      {
+        rc = cwLogError(kSyntaxErrorRC,"An invalid log flag '%s' was encountered.",cwStringNullGuard(flag_str));
+        goto errLabel;
+      }
+      log_args.flags += flag;
+    }
+    else
+    {
+      rc = cwLogError(kSyntaxErrorRC,"Log 'flags' parameter parsing failed.");
+      goto errLabel;
+    }
+  }
+      
+    
+errLabel:
+  return rc;    
+}
+
+rc_t _create_log( app_t& app, const object_t* cfg )
+{
+  rc_t            rc      = kOkRC;
+  const object_t* log_cfg = nullptr;
+  log::log_args_t log_args;
+
+  // get the default log args
+  log::init_default_args(log_args);
+
+  // locate the 'log' cfg in the 'cfg'.
+  if((rc = cfg->getv_opt("log",log_cfg)) != kOkRC )
+  {
+    rc = cwLogError(rc,"The 'log' label access failed in the cfg. file.");
+    goto errLabel;
+  }
+
+  // parse the log cfg.
+  if( log_cfg != nullptr )
+  {
+    if((rc = _parse_log_args( log_cfg, log_args )) != kOkRC )
+    {
+      rc = cwLogError(rc,"Log arguments cfg. parse failed.");
+      goto errLabel;
+    }
+  }
+
+  log_args.outCbFunc = _log_output_func;
+  log_args.outCbArg  = &app;
+
+  // only use the log queue if in UI mode
+  if( app.cmd_line_action_id!=kUiSelId )
+    log_args.flags = cwSetFlag(log_args.flags,log::kSkipQueueFl);
+  
+  
+  // recreate the global log with the updated parameters
+  if((rc = log::createGlobal(  log_args  )) != kOkRC )
+  {
+    goto errLabel;
+  }
+  
+errLabel:
+  return rc;  
+}
+
 rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
 {
   rc_t rc = kOkRC;
@@ -961,6 +1092,11 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
       goto errLabel;
     }
 
+    if((rc = _create_log(app, app.flow_cfg)) != kOkRC )
+    {
+      goto errLabel;
+    }
+
     // read the io cfg filename
     if((rc = app.flow_cfg->getv("io_dict", io_cfg_fn)) != kOkRC )
     {
@@ -998,6 +1134,8 @@ rc_t _io_main( app_t& app )
   // execute the IO framework
   while( !io::isShuttingDown(app.ioH))
   {
+    log::exec(log::globalHandle());
+    
     // This call will block on the websocket handle
     // for up to io_cfg->ui.websockTimeOutMs milliseconds
     io::exec(app.ioH,50);
@@ -1028,23 +1166,6 @@ void _test_stub( app_t& app )
 
 }
 
-void _log_output_func( void* arg, unsigned level, const char* text )
-{
-  app_t*   app     = (app_t*)arg;
-
-  if( app->ioH.isValid() && is_started_flag(app->ioH) )
-  {
-  
-    unsigned logUuId = uiFindElementUuId( app->ioH, kLogId);
-  
-    uiSetLogLine( app->ioH, logUuId, text );
-  }
-
-  if( !app->run_fl )
-  {
-    log::defaultOutput(nullptr,level,text);
-  }
-}
 
 
 int main( int argc, char* argv[] )
@@ -1052,13 +1173,17 @@ int main( int argc, char* argv[] )
   rc_t  rc  = kOkRC;
   bool exec_complete_fl = false;
   app_t app = {}; // all zero
+  log::log_args_t log_args = {};
+  
   app.pgm_preset_idx = kInvalidIdx;
 
   // seed the random number generator with the time
   std::srand(static_cast<unsigned int>(std::time(0)));
 
-  // create the log
-  cw::log::createGlobal(log::kPrint_LogLevel,_log_output_func,&app);
+  log::init_minimum_args(log_args);
+
+  // create the a minimal log for use during cfg. parsing.
+  cw::log::createGlobal(log_args);
 
   unsigned appIdMapN = sizeof(appIdMapA)/sizeof(appIdMapA[0]);
 
