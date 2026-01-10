@@ -34,21 +34,15 @@ git clone https://github.com/currawong-project/libcw.git
 cd libcw
 ```
 
-Debug Build
+Build
 ```
-cd caw/build/linux/debug
-./build.sh # Generates and runs caw/configure
-make
-make install # installs into caw/build/linux/debug/bin
+cd ~/src/caw
+rm -rf build
+cmake  -B build/debug -DCMAKE_INSTALL_PREFIX=build/debug/install --preset debug # (or --preset release)
+cmake --build build/debug --preset debug
+cmake --install build/debug 
 ```
 
-Release Build
-```
-cd caw/build/linux/release
-./build.sh  # generates and runs caw/configure
-make
-make install # installs into caw/build/linux/release/bin
-```
 
 
 ## Command Line
