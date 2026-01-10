@@ -1,0 +1,52 @@
+{
+    "$comment": "version=CMake JSON schema version",
+    "version":10,
+    "cmakeMinimumRequired": { "major": 3, "minor":23, "patch": 0 },
+
+    "configurePresets":[
+	{
+	    "name":"default",
+	    "displayName":"Default configuration",
+	    "description":"Default 'cw' build configuration.",
+	    "cacheVariables": {
+	    }
+	},
+	{
+	    "name":"debug",
+	    "displayName":"Debug Build",
+	    "inherits":"default",
+	    "cacheVariables":{
+		"CMAKE_BUILD_TYPE":"Debug"
+	    }
+	},
+	{
+	    "name":"release",
+	    "displayName":"Release Build",
+	    "inherits":"default"
+	}
+	
+    ],
+    
+    "buildPresets":[
+	{
+	    "name":"default",
+	    "configurePreset":"default"
+	},
+	{
+	    "name":"debug",
+	    "inherits":"default"
+	}
+    ],
+    
+    "testPresets":[
+    ],
+    
+    "packagePresets":[
+    ],
+    
+    "workflowPresets":[
+    ],
+    
+    "vendor":{
+    }
+}
