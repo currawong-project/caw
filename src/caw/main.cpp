@@ -432,6 +432,7 @@ rc_t _on_pgm_run( app_t* app, bool run_check_fl )
 
   if( !run_check_fl )
   {
+    mem::clear_warn_on_alloc();
     midiDeviceAllNotesOff( app->ioH );
 
   }
@@ -623,6 +624,7 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
   switch( m.appId )
   {
     case kQuitBtnId:
+      mem::clear_warn_on_alloc();
       io::stop( app->ioH );
       break;
       
@@ -876,7 +878,10 @@ rc_t _io_callback( void* arg, const io::msg_t* m )
         if(app->run_fl && !executable_fl )
         {
           app->run_fl = false;
-          uiSendValue(app->ioH, io::uiFindElementUuId( app->ioH, kRunCheckId ), false );
+
+          // if the UI is enabled
+          if( app->cmd_line_action_id==kUiSelId )
+            uiSendValue(app->ioH, io::uiFindElementUuId( app->ioH, kRunCheckId ), false );
         }
         
       }
@@ -1030,13 +1035,15 @@ rc_t _create_log( app_t& app, const object_t* cfg )
     }
   }
 
-  log_args.outCbFunc = _log_output_func;
-  log_args.outCbArg  = &app;
+  // redirect logs to the UI if in 'ui'mode
+  if( app.cmd_line_action_id==kUiSelId )
+  {
+    log_args.outCbFunc = _log_output_func;
+    log_args.outCbArg  = &app;    
+  }
 
-  // only use the log queue if in UI mode
-  if( app.cmd_line_action_id!=kUiSelId )
-    log_args.flags = cwSetFlag(log_args.flags,log::kSkipQueueFl);
-  
+  // skip the queue until we see that we are in real-time mode
+  log_args.flags = cwSetFlag(log_args.flags,log::kSkipQueueFl);    
   
   // recreate the global log with the updated parameters
   if((rc = log::createGlobal(  log_args  )) != kOkRC )
@@ -1046,6 +1053,38 @@ rc_t _create_log( app_t& app, const object_t* cfg )
   
 errLabel:
   return rc;  
+}
+
+// in 'exec' mode the UI must be disabled
+rc_t _disable_ui( object_t* cfg )
+{
+  rc_t      rc         = kOkRC;
+  object_t* ui_cfg     = nullptr;
+  object_t* ena_fl_cfg = nullptr;
+  
+  if((ui_cfg = cfg->find_child("ui")) == nullptr )
+  {
+    rc = cwLogError(kSyntaxErrorRC,"The IO cfg. does not have a 'ui' section.");
+    goto errLabel;
+  }
+
+  if((ena_fl_cfg = ui_cfg->find_child("enableFl")) == nullptr )
+  {
+    rc = cwLogError(kSyntaxErrorRC,"The IO cfg. 'ui' section does not have an 'enableFl' entry.");
+    goto errLabel;
+  }
+
+  if((rc = ena_fl_cfg->set_value(false)) != kOkRC )
+  {
+    rc = cwLogError(kOpFailRC,"An attempt to disable the 'enableFl' in the IO cfg. 'ui' section failed.");
+    goto errLabel;
+  }
+
+errLabel:
+  if( rc != kOkRC )
+    rc = cwLogError(rc,"UI disable failed.");
+  return rc;
+      
 }
 
 rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
@@ -1110,6 +1149,15 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
       goto errLabel;
     }
 
+    // if the 'exec' mode was selected then disable the UI
+    if( app.cmd_line_action_id == kExecSelId )
+    {
+      if((rc = _disable_ui( app.io_cfg )) != kOkRC )
+      {
+        goto errLabel;
+      }
+    } 
+
     // get the fourth cmd line arg (pgm label of the program to run from the cfg file in arg[2])
     if( argc >= 4 )
       app.cmd_line_pgm_label = argv[3];
@@ -1123,7 +1171,10 @@ errLabel:
 rc_t _io_main( app_t& app )
 {
   rc_t rc = kOkRC;
-  
+
+  // we are running in real-time mode - use the log queue
+  log::set_flags( log::globalHandle(), log::flags(log::globalHandle()) | log::kSkipQueueFl );
+
   // start the IO framework instance
   if((rc = io::start(app.ioH)) != kOkRC )
   {
@@ -1247,6 +1298,9 @@ int main( int argc, char* argv[] )
       {
         goto errLabel;
       }
+
+      if( !exec_complete_fl )
+        app.run_fl = true;
       break;
 
   }
@@ -1257,7 +1311,7 @@ int main( int argc, char* argv[] )
   // non-real-time programs will have already executed
   if( !exec_complete_fl )
     _io_main(app);
-
+  
 
 errLabel:
 
