@@ -37,6 +37,10 @@
 	{
 	    "name":"debug",
 	    "inherits":"default"
+	},
+	{
+	    "name":"release",
+	    "inherits":"default"
 	}
     ],
     
