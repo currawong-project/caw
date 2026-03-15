@@ -21,7 +21,25 @@ target_sources(caw
   cawUi.h  
 )
 
-target_link_libraries(caw PRIVATE cw)
+
+target_compile_options(caw PRIVATE
+    # Add specific flags only for the Debug configuration (e.g., Address Sanitizer)
+    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-fsanitize=undefined -Wall -Wextra -Wno-unused>    
+    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>,$<BOOL:${CW_ADDRESS_SANITIZER_FL}>>:-fsanitize=address>    
+    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>,$<BOOL:${CW_THREAD_SANITIZER_FL}>>:-fsanitize=thread>    
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${CW_COVERAGE_FL}>>:--coverage>    
+)
+
+target_link_libraries(
+  caw
+  PRIVATE
+  cw
+  $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-fsanitize=undefined>    
+  $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>,$<BOOL:${CW_ADDRESS_SANITIZER_FL}>>:-lasan>    
+  $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>,$<BOOL:${CW_THREAD_SANITIZER_FL}>>:-fsanitize=thread>    
+  $<$<AND:$<CONFIG:Debug>,$<BOOL:${CW_COVERAGE_FL}>>:--coverage>    
+)
+
 
 
 install( TARGETS caw DESTINATION bin )
