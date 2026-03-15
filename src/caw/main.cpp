@@ -469,7 +469,7 @@ rc_t _on_variable_value( app_t* app, const io::ui_msg_t& m, T value )
 {
   rc_t            rc     = kOkRC;
   flow::ui_var_t* ui_var = nullptr;
-  unsigned        byteN  = sizeof(ui_var);
+  unsigned        byteN  = sizeof(ui_var); // NOLINT(bugprone-sizeof-expression)
   
   if((rc = uiGetBlob(app->ioH,m.uuId, &ui_var,byteN)) != kOkRC )
   {
@@ -477,7 +477,7 @@ rc_t _on_variable_value( app_t* app, const io::ui_msg_t& m, T value )
     goto errLabel;
   }
   
-  assert( byteN == sizeof(ui_var));
+  assert( byteN == sizeof(ui_var)); // NOLINT(bugprone-sizeof-expression)
 
   if((rc = set_variable_value( app->ioFlowH, ui_var, value )) != kOkRC )
   {
@@ -715,7 +715,7 @@ rc_t _on_variable_echo( app_t* app, const io::ui_msg_t& m )
   rc_t            rc     = kOkRC;
   T               value  = 0;
   flow::ui_var_t* ui_var = nullptr;
-  unsigned        byteN  = sizeof(ui_var);
+  unsigned        byteN  = sizeof(ui_var); // NOLINT(bugprone-sizeof-expression)
   
   if((rc = uiGetBlob(app->ioH,m.uuId, &ui_var,byteN)) != kOkRC )
   {
@@ -723,7 +723,7 @@ rc_t _on_variable_echo( app_t* app, const io::ui_msg_t& m )
     goto errLabel;
   }
   
-  assert( byteN == sizeof(ui_var));
+  assert( byteN == sizeof(ui_var)); // NOLINT(bugprone-sizeof-expression)
 
   if((rc = get_variable_value( app->ioFlowH, ui_var, value )) != kOkRC )
   {
