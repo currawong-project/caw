@@ -81,6 +81,7 @@ label {
 
     align-items: flex-start;     /* left justify */
     align-content: flex-stretch; /* fill horizontal space */
+    margin-left: 10px;
     
 }
 
