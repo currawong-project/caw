@@ -1026,7 +1026,11 @@ rc_t _create_log( app_t& app, const object_t* cfg )
   }
 
   // parse the log cfg.
-  if( log_cfg != nullptr )
+  if (log_cfg == nullptr)
+  {
+    cwLogWarning("No log configuration was provided. Using defaults.");
+  }
+  else
   {
     if((rc = _parse_log_args( log_cfg, log_args )) != kOkRC )
     {
@@ -1289,7 +1293,7 @@ int main( int argc, char* argv[] )
       // the pgm to exec must have given
       if( app.cmd_line_pgm_label == nullptr )
       {
-        rc = cwLogError(kInvalidArgRC,"The label of the program to execute from %s was not given.",cwStringNullGuard(app.cmd_line_pgm_fname));
+        rc = cwLogError(kInvalidArgRC,"No program was selected for %s.",cwStringNullGuard(app.cmd_line_pgm_fname));
         goto errLabel;
       }
       
@@ -1338,7 +1342,7 @@ errLabel:
 
 
   cw::log::destroyGlobal();
-  
+
   return rc;
 }
 
