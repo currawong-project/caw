@@ -84,7 +84,10 @@ function dom_id_to_ele( id )
 // { return document.getElementById(id); }
 
 function dom_set_checkbox( ele_id, fl )
-{ dom_id_to_ele(ele_id).checked = fl }
+{
+    dom_id_to_ele(ele_id).checked = fl
+}
+ 
 
 function dom_get_checkbox( ele_id )
 { return dom_id_to_ele(ele_id).checked }
@@ -334,7 +337,7 @@ function ui_create_button( parent_ele, d )
 function ui_create_check( parent_ele, d )
 {
     var ele = ui_create_ctl( parent_ele, "input", d.title, d, "uiCheck" )
-    
+
     if( ele != null )
     {
 	ele.type = "checkbox";
@@ -382,8 +385,8 @@ function ui_select_set_from_option_app_id( sel_ele, option_appId )
 function ui_create_select( parent_ele, d )
 {
     var ele = ui_create_ctl( parent_ele, "select", d.title, d, "uiSelect" );
-    //ele.onchange = function() { ui_on_select(this) }
-    ele.onclick  = function() { ui_on_select(this) }
+    ele.onchange = function() { ui_on_select(this) }
+    //ele.onclick  = function() { ui_on_select(this) }
     
     if( !d.hasOwnProperty('value') )
     {
