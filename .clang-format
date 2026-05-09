@@ -1,0 +1,52 @@
+# 
+DisableFormat: true
+
+BasedOnStyle: LLVM
+
+# --- Indentation ---
+IndentWidth: 2
+ContinuationIndentWidth: 2
+UseTab: Never
+
+# --- Braces ---
+BreakBeforeBraces: Allman
+
+# --- Line length ---
+ColumnLimit: 0
+
+# --- Pointer style ---
+PointerAlignment: Left
+DerivePointerAlignment: false
+ReferenceAlignment: Pointer
+
+
+# --- Spacing rules ---
+SpaceBeforeParens: Never
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# --- Commas ---
+# (clang-format defaults to spaces after commas; keep that behavior)
+
+# --- Prevent aggressive rewriting ---
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# --- Function calls & arguments ---
+BinPackArguments: false
+BinPackParameters: false
+
+# --- Alignment (IMPORTANT) ---
+# Do NOT auto-align (it will fight Emacs)
+AlignConsecutiveDeclarations: false
+AlignConsecutiveAssignments: false
+
+# --- Reduce damage to manual formatting ---
+ReflowComments: false
+SortIncludes: false
+
+# --- Empty lines ---
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
