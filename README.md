@@ -59,3 +59,10 @@ Test Example Command line
 ```
 caw test     ~/src/cwtest/src/cwtest/cfg/test/main.cfg /time all echo
 ```
+
+
+## Prevent Wireplumber from holding an audio device:
+```
+wpctl status                         # get the device id
+wpctl set-profile <device-id> off    # disable the device
+```
