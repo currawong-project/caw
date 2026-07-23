@@ -31,6 +31,10 @@ namespace caw {
 
   namespace ui  {
 
+    enum {
+      kColVarLayoutId,
+      kRowVarLayoutId
+    };
     
     typedef struct ui_str
     {
@@ -41,6 +45,7 @@ namespace caw {
       
     } ui_t;
 
+    
 
     ui_t* _handleToPtr( handle_t h )
     { return handleToPtr<handle_t,ui_t>(h); }
@@ -227,6 +232,54 @@ namespace caw {
     errLabel:
       return rc;
     }
+
+    rc_t _get_var_layout_id( const flow::ui_var_t* ui_var, unsigned& layout_id_ref )
+    {
+      rc_t        rc           = kOkRC;
+      const char* layout_label = nullptr;
+      
+      idLabelPair_t   typeA[] = {
+        { kColVarLayoutId, "col" },
+        { kRowVarLayoutId,  "row" },
+        { kInvalidId, nullptr }
+      };
+
+      // var layout will be a row by default
+      layout_id_ref  = kRowVarLayoutId;
+      
+      if( ui_var->ui_cfg != nullptr )
+      {
+        // get the layout label from the cfg
+        if((rc = ui_var->ui_cfg->getv_opt("layout",layout_label)) != kOkRC )
+        {
+          rc = cwLogError(rc,"Error parsing variable 'ui' layout cfg.");
+          goto errLabel;
+        }
+
+        // if no layout was specified then use the 'row' layout
+        if( layout_label != nullptr )
+        {        
+          //  convert the layout label to an id
+          if((layout_id_ref = labelToId(typeA,layout_label,kInvalidId)) == kInvalidId )
+          {
+            rc = cwLogError(rc,"An unknown widget layout '%s' was encountered.",layout_label);
+            goto errLabel;
+          }
+        }
+      }
+
+      // validate the layout label
+      if( layout_id_ref == kInvalidId )
+      {
+        rc = cwLogError(kInvalidArgRC,"Unknown widget layout for variable %s:%i.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+        goto errLabel;
+      }
+
+      
+    errLabel:
+      return rc;
+      
+    }
     
     
     rc_t _create_var_ui( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned var_idx, unsigned container_uuId, unsigned var_label_uuId )
@@ -412,6 +465,14 @@ namespace caw {
       const unsigned label_buf_charN = 127;
       char           label_buf[ label_buf_charN+1 ];
 
+      idLabelPair_t   layoutA[] = {
+        { kColVarLayoutId, "uiCol" },
+        { kRowVarLayoutId, "uiRow" },
+        { kInvalidId, nullptr }
+      };
+
+      
+
       // for each var
       for(unsigned i=0; i<ui_proc->varN; ++i)
       {
@@ -421,6 +482,7 @@ namespace caw {
         unsigned        varUuId        = kInvalidId;
         unsigned        widgetListUuId = kInvalidId;
         unsigned        varLabelUuId   = kInvalidId;
+        unsigned        varChDivUuId   = kInvalidId;
 
         // 
         if( ui_var->ch_idx != flow::kAnyChIdx )
@@ -455,6 +517,8 @@ namespace caw {
         varLabelUuId   = uiFindElementUuId(p->ioH, varUuId, kVarLabelId,   kInvalidId );
         widgetListUuId = uiFindElementUuId(p->ioH, varUuId, kWidgetListId, kInvalidId );
 
+        varChDivUuId = uiPhysicalParentUuId(p->ioH, widgetListUuId );
+
         if( var_mult_cnt <= 1 )
           snprintf(label_buf,label_buf_charN,"%s",ui_var->title);
         else
@@ -465,12 +529,38 @@ namespace caw {
         {
           goto errLabel;
         }
-        
+
         label_buf[0] = '\0';
         
         for(unsigned ch_idx = 0; ch_idx<ch_cnt; ++ch_idx)
         {
-          const flow::ui_var_t* ui_chan_var = ui_var; 
+          const flow::ui_var_t* ui_chan_var = ui_var;
+
+          // if this is the var's first channel ...
+          if( ch_idx == 0 )
+          {
+            // ... then determine if successive channels will be layed out as a column or row
+            // (defaults to row, See the var desc for audio_meter for an example of a var which is layed out as a column)
+            
+            unsigned    layout_id = kRowVarLayoutId;
+            const char* className = "uiRow";
+
+            // get the requested layout from the var_desc->ui_cfg
+            _get_var_layout_id( ui_var, layout_id);
+
+            //  convert the layout id to a class label (e.g. uiCol,uiRow)
+            if((className = idToLabel(layoutA,layout_id,kInvalidId)) == nullptr )
+            {
+              cwLogError(kAssertFailRC,"The lookup of layout id:%i failed.",layout_id);
+              className = "uiRow";
+            }
+
+            // the var UI was created as a 'div' append an additional class to make it a row or column
+            uiAppendClassName( p->ioH, varChDivUuId,  className );
+            uiAppendClassName( p->ioH, widgetListUuId, className );
+
+          }
+          
 
           // if ui_var->ch_cnt == 0 only the kAnyChIdx channel exists (which is the var pointed to by ui_var)
           // otherwise we find a numbered channel var according to ch_idx
@@ -491,7 +581,6 @@ namespace caw {
           }
           
         }
-
       }
       
       errLabel:

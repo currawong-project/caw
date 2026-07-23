@@ -175,7 +175,8 @@ function ui_create_ele( parent_ele, ele_type, d, dfltClassName )
 {
     // create the ctl object
     var ele = dom_create_ele(ele_type);
-
+    var acn = "<None>"
+    
     if( ele == null )
 	ui_error(ele_type +" element create failed.");
     else
@@ -190,6 +191,7 @@ function ui_create_ele( parent_ele, ele_type, d, dfltClassName )
 	if(d.hasOwnProperty('addClassName') )
 	{
 	    ele.className += " " + d.addClassName
+	    acn = d.addClassName
 	}
 
 	if(d.hasOwnProperty('appId'))
@@ -203,7 +205,8 @@ function ui_create_ele( parent_ele, ele_type, d, dfltClassName )
 	if( d.hasOwnProperty('enable') )
 	    ui_set_enable( ele, d.enable )
 
-	//console.log("Created: " + ele_type  + " parent:" + d.parentUuId + " id:" + ele.id + " appId:" + ele.appId)
+	// console.log("Created: " + ele_type  + " parent:" + d.parentUuId + " id:" + ele.id + " appId:" + ele.appId + " class:" + ele.className + " acn:" + acn )
+	// console.log("D:",d)
 	
 	parent_ele.appendChild(ele);
 	
@@ -970,6 +973,22 @@ function ui_set_order_key(ele, orderKey)
     
 }
 
+function ui_set_class(ele,className)
+{
+    ele.className = className
+}
+
+function ui_append_class(ele,className)
+{
+    ele.className += " " + className
+}
+
+function ui_remove_class(ele,className)
+{
+    ele.className = ele.className.replace(className,"")
+}
+
+
 function ui_set( d )
 {
     //console.log(d)
@@ -1012,6 +1031,18 @@ function ui_set( d )
 
 	    case "order":
 	    ui_set_order_key(ele,d.value)
+	    break
+
+	    case "set_class":
+	    ui_set_class(ele,d.value)
+	    break
+
+	    case "add_class":
+	    ui_append_class(ele,d.value)
+	    break
+
+	    case "rem_class":
+	    ui_remove_class(ele,d.value)
 	    break
 	    
 	}

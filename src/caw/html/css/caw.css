@@ -28,8 +28,9 @@
     border: 1px solid black;
 
     display: flex;
-    flex-direction: column;
-    overflow-y: hidden;          
+    flex-direction: column;    
+    overflow-y: hidden;
+    width: 100%;
 }
 
 
