@@ -66,3 +66,63 @@ caw test     ~/src/cwtest/src/cwtest/cfg/test/main.cfg /time all echo
 wpctl status                         # get the device id
 wpctl set-profile <device-id> off    # disable the device
 ```
+
+
+# Install rtpmidid
+
+
+sudo dnf install avahi nss-mdns
+sudo systemctl enable --now avahi-daemon
+
+Install the rtpmidid service
+```
+dnf install rtpmidid-fedora-43-x86_64-26.01-1.fc43.rpm 
+```
+
+Create a user named rtpmidid and assign them to the group audio.
+This rtpmidid daemon executes as this user
+```
+sudo useradd -r -s /usr/sbin/nologin -G audio rtpmidid 
+```
+
+sudo firewall-cmd --add-port=5004-5006/udp  # use  --permanent to open the ports permanently
+
+0. Verify that the rtpmidi deamon is activated:
+`systemctl status rtpmidid`
+
+1. Be sure that the xioxm is on the same sub-net as the computers it will communicate with
+This may involve giving it a static IP via Auracle-X.  (e.g. 192.168.8.146)
+
+
+2. Use Auracle-X to verify that "mixXM FFC-01" is setup as a 'responder' 
+
+3. Connect the Fedora workstation that will send/receive data from/to DIN 1 on the xioxm.
+`rtpmidid-cli connect name="mioXM FFC-01" hostname=192.168.8.146 port=5004`
+
+4. `aconnect -l` should list `rtpmidid` as a device and `mioXM FFC-01` as an input and output port.
+
+5. Create a caw `midi_in` or `midi_out` object to send/receive to/from DIN 1.
+
+`m_in: { class: midi_in, args:{ print_fl:true, dev_label:"rtpmidid",    port_label:"mioXM FFC-01" }, ui:{create_fl:true} },`
+
+
+6. Note that on the xioXM DIN 1 connected to `mioXM FFC-01` by default.  
+
+
+
+
+./rtpmidi-cli.py 
+
+To use RTP-MIDI, you must open UDP ports 5004 and 5005. 
+Each additional virtual MIDI session or connection requires the next pair of consecutive sequential ports (such as 5006 and 5007, 5008 and 5009, and so on)
+```
+# open up 2 base channels (5004,05) and (5 additional connections)
+sudo firewall-cmd --add-port=5004-5015/udp # To make permanent include: --permanent
+
+```
+
+See /etc/rtpmidi/default.ini for the default rtpmidid setup
+
+
+
+
