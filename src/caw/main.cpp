@@ -535,8 +535,8 @@ rc_t _on_reload_cfg_file(app_t* app)
   }
 
   // Clear the pgm and preset drop-down menus
-  uiClearSelect(app->ioH,pgmSelUuId);
-  uiClearSelect(app->ioH,pgmPresetSelUuId);
+  uiEmptyParent(app->ioH,pgmSelUuId);
+  uiEmptyParent(app->ioH,pgmPresetSelUuId);
   
   // Unload the the program
   if((rc = io_flow_ctl::unload(app->ioFlowH)) != kOkRC )
