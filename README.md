@@ -85,7 +85,6 @@ This rtpmidid daemon executes as this user
 sudo useradd -r -s /usr/sbin/nologin -G audio rtpmidid 
 ```
 
-sudo firewall-cmd --add-port=5004-5006/udp  # use  --permanent to open the ports permanently
 
 0. Verify that the rtpmidi deamon is activated:
 `systemctl status rtpmidid`
@@ -93,11 +92,19 @@ sudo firewall-cmd --add-port=5004-5006/udp  # use  --permanent to open the ports
 1. Be sure that the xioxm is on the same sub-net as the computers it will communicate with
 This may involve giving it a static IP via Auracle-X.  (e.g. 192.168.8.146)
 
+Hints:
+- Disable WiFi
+- Verify the expecte IP address is being used via `ip addr`
 
-2. Use Auracle-X to verify that "mixXM FFC-01" is setup as a 'responder' 
+2. Open the firewall
+```
+sudo firewall-cmd --add-port=5004-5011/udp  # use  --permanent to open the ports permanently
+```
+3. Use Auracle-X to verify that "mixXM FFC-01" is setup as a 'responder' 
 
-3. Connect the Fedora workstation that will send/receive data from/to DIN 1 on the xioxm.
-`rtpmidid-cli connect name="mioXM FFC-01" hostname=192.168.8.146 port=5004`
+// SKIP THIS STEP IT DOES NOT SEEM TO BE NECESSARY:
+//Connect the Fedora workstation that will send/receive data from/to DIN 1 on the xioxm.
+// `rtpmidid-cli connect name="mioXM FFC-01" hostname=192.168.8.146 port=5004`
 
 4. `aconnect -l` should list `rtpmidid` as a device and `mioXM FFC-01` as an input and output port.
 
@@ -118,7 +125,6 @@ Each additional virtual MIDI session or connection requires the next pair of con
 ```
 # open up 2 base channels (5004,05) and (5 additional connections)
 sudo firewall-cmd --add-port=5004-5015/udp # To make permanent include: --permanent
-
 ```
 
 See /etc/rtpmidi/default.ini for the default rtpmidid setup
