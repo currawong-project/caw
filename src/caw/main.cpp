@@ -395,6 +395,8 @@ rc_t _on_pgm_load(app_t* app )
   
   if( !program_is_initialized( app->ioFlowH) )
   {
+    cwLogInfo("Loading ...");
+
     // Initialize the program in a separate thread so that we can see the log messages as they occur.
     // Without async load the program is blocked until the load is complete.
     // When _load_pgm_thread_func() is complete _on_load_pgm_thread_complete() is called.
@@ -702,6 +704,10 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       break;
 
     case kListWidgetId:
+      rc = _on_variable_value(app,m,m.value->u.u);
+      break;
+
+    case kStatusWidgetId:
       rc = _on_variable_value(app,m,m.value->u.u);
       break;
     

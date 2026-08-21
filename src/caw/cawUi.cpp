@@ -165,7 +165,64 @@ namespace caw {
     errLabel:
       return rc;
     }
-    
+
+    rc_t _create_status_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, const char* title, unsigned& uuid_ref )
+    {
+      rc_t            rc      = kOkRC;
+      const object_t* statusD = nullptr;
+      unsigned statusN = 0;
+      
+      if( ui_var->ui_cfg == nullptr )
+      {
+        rc = cwLogError(kInvalidArgRC,"No status array was provided in the var. desc. 'ui:' stanza.");
+        goto errLabel;
+      }
+
+
+      
+      if((rc = ui_var->ui_cfg->getv("status",statusD)) != kOkRC )
+      {
+        rc = cwLogError(rc,"The var. desc. 'ui:' stanza has no 'status' dictionary.");
+        goto errLabel;
+      }
+
+      statusN = statusD->child_count();
+
+      if((rc = uiCreateStatus( p->ioH, uuid_ref, widgetListUuId, nullptr, kStatusWidgetId, kInvalidId, nullptr, title )) != kOkRC )
+      {
+        rc = cwLogError(rc,"Status widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+        goto errLabel;        
+      }
+
+      for(unsigned i=0; i<statusD->child_count(); ++i)
+      {
+        const char* label = nullptr;
+        const char* color = nullptr;
+        unsigned    value = 0;
+
+        if((rc = statusD->child_ele(i)->getv("label",label,
+                                             "color",color,
+                                             "value",value)) != kOkRC )
+        {
+          rc = cwLogError(rc,"The 'status' array element at index '%i' could not be parsed.",i);
+          goto errLabel;
+        }
+
+        if((rc = uiAttachStatusState(p->ioH, uuid_ref, label, value, color )) != kOkRC )
+        {
+          rc = cwLogError(rc,"'status' value update at index '%i' update failed.",i);
+          goto errLabel;
+        }
+
+      }
+      
+    errLabel:
+      if(rc != kOkRC )
+        rc = cwLogError(rc,"The 'status' widget creation failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
+      
+      return rc;
+    }
+        
     rc_t _create_var_label( ui_t* p, unsigned varLabelUuId, const flow::ui_var_t* ui_var, const char* label, unsigned var_idx )
     {
       rc_t rc = kOkRC;
@@ -189,6 +246,7 @@ namespace caw {
       idLabelPair_t   typeA[] = {
         { kMeterWidgetId, "meter" },
         { kListWidgetId,  "list" },
+        { kStatusWidgetId, "status" },
         { kInvalidId, nullptr }
       };
 
@@ -358,7 +416,11 @@ namespace caw {
 
         case kListWidgetId:
           rc = _create_list_widget(p,widgetListUuId,ui_var,title,widget_uuId);
-          break;          
+          break;
+
+        case kStatusWidgetId:
+          rc = _create_status_widget(p,widgetListUuId,ui_var,title,widget_uuId);
+          break;
           
         default:
           {            

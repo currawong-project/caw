@@ -55,6 +55,11 @@ label {
 .uiStringDiv  input {
 }
 
+.uiStatus {
+  display: grid;
+  place-items: center;     
+}
+
 .uiPanel {
     background-color: LightBlue;
 }

@@ -470,6 +470,51 @@ function ui_create_str_display( parent_ele, d )
     return ele;
 }
 
+function ui_attach_status_state(ele, d)
+{
+    // console.log("Attaching: "+ele.id+" to "+d.value + " count:" + ele.statusA.length)
+    ele.statusA.push(d)
+}
+
+function ui_set_status_value( ele, int_value )
+{
+    var i;
+
+    // console.log("Setting: "+ele.id+" to "+int_value + " count:" + ele.statusA.length)
+    
+    for(i=0; i<ele.statusA.length; ++i)
+    {
+	if( ele.statusA[i].value == int_value )
+	{
+	    //console.log("Set: "+ele.id+" to "+int_value+ " " + ele.statusA[i].label )
+
+	    ui_set_str_display(ele.id, ele.statusA[i].label );
+	    ele.style.backgroundColor = ele.statusA[i].color;
+	    return
+	}
+    }
+
+    console.log("status widget value " + int_value + " invalid on element " + ele.id)
+}
+
+function ui_create_status( parent_ele, d )
+{
+    var ele = ui_create_ctl( parent_ele, "label", d.title, d, "uiStatus" );
+    
+    if( ele != null )
+    {
+	ele.className += " enable_able"
+	ele.statusA = [ ]  // array to be filled with { label, value, color } records in ui_attach_status_state()
+
+	// when the status is created it has no status records yet and so it has
+	// to have it's value echoed.
+	ui_send_echo(ele);
+	
+    }
+    
+    return ele;
+}
+
 function _ui_on_string_blur( ele )
 {
     if( ele.id == _focusId )
@@ -852,6 +897,11 @@ function ui_set_value( d )
 	    //ele.value = d.value
 	    break;
 
+	    case "status":
+	    ui_set_status_value(ele, d.value)
+	    break;
+
+
 	    case "log":
 	    ui_set_log_text( ele, d.value )
 	    break
@@ -1013,6 +1063,10 @@ function ui_set( d )
 	    ui_set_prog_range(ele, d)
 	    break;
 
+	    case "attach_status_state":
+	    ui_attach_status_state(ele, d)
+	    break;
+	    
 	    case "select":
 	    ui_set_select(ele,d.value)
 	    break
@@ -1113,6 +1167,10 @@ function ui_create( d )
 
 	    case "str_disp":
 	    ele = ui_create_str_display( parent_ele, d );
+	    break;
+
+	    case "status":
+	    ele = ui_create_status( parent_ele, d );
 	    break;
 	    
 	    case "string":
@@ -1243,7 +1301,7 @@ function _ws_on_msg( d )
 
 function ws_on_msg( jsonMsg )
 {
-    //console.log(jsonMsg)
+    // console.log(jsonMsg)
     
     d = JSON.parse(jsonMsg.data);
 

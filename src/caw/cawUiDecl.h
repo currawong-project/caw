@@ -50,6 +50,7 @@ namespace caw {
       kStringWidgetId,
       kMeterWidgetId,
       kListWidgetId,
+      kStatusWidgetId,
       
 
       kPgmBaseSelId,
