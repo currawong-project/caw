@@ -35,18 +35,43 @@ namespace caw {
       kColVarLayoutId,
       kRowVarLayoutId
     };
-    
+/*
+    enum {
+      kNoUiDescFl         = 0x00,
+      kHorizontalUiDescFl = 0x01,
+      kNoTitleUiDescFl    = 0x02
+    };
+*/
     typedef struct ui_str
     {
       io::handle_t              ioH;
       io_flow_ctl::handle_t     ioFlowH;
       const flow::ui_net_t*     ui_net;
-      unsigned                  ui_net_idx;
-      
+      unsigned                  ui_net_idx;      
     } ui_t;
-
+/*
+    typedef struct {
+      unsigned flag;
+      const char* label;        
+    } flag_t;
     
+    flag_t uiDescFlagA[] =
+    {
+      { kHorizontalUiDescFl, "horizontal" },
+      { kNoTitleUiDescFl,    "no_title"   },
+      { kNoUiDescFl,         nullptr }
+    };
 
+    rc_t _ui_desc_flag_to_value( const char* label,unsigned& flags_ref )
+    {
+      rc_t rc = kOkRC;
+      for(unsigned i=0; uiDescFlagA[i].label!=nullptr; ++i)
+        if( textIsEqual(uiDescFlagA[i].label,label) )
+          return uiDescFlagA[i].flag;
+
+      return cwLogError(kSyntaxErrorRC,"The UI description flag '%s' is not valid.",cwStringNullGuard(label));
+    }
+*/
     ui_t* _handleToPtr( handle_t h )
     { return handleToPtr<handle_t,ui_t>(h); }
 
@@ -82,8 +107,12 @@ namespace caw {
     rc_t _create_button_widget( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned& uuid_ref )
     {
       rc_t rc = kOkRC;
+
+      const char* title = ui_var->label;
+      if( ui_var->title != nullptr && cwIsFlag(ui_var->desc_flags,flow::kUiTitleToLabelVarDescFl) )
+        title = ui_var->title;
       
-      if((rc = uiCreateButton(p->ioH, uuid_ref, widgetListUuId, nullptr, kButtonWidgetId, kInvalidId, nullptr, ui_var->label )) != kOkRC )
+      if((rc = uiCreateButton(p->ioH, uuid_ref, widgetListUuId, nullptr, kButtonWidgetId, kInvalidId, nullptr, title )) != kOkRC )
       {
         rc = cwLogError(rc,"Check box widget create failed on '%s:%i'.",cwStringNullGuard(ui_var->label),ui_var->label_sfx_id);
       }
@@ -245,7 +274,7 @@ namespace caw {
       
       idLabelPair_t   typeA[] = {
         { kMeterWidgetId, "meter" },
-        { kListWidgetId,  "list" },
+        { kListWidgetId, "list" },
         { kStatusWidgetId, "status" },
         { kInvalidId, nullptr }
       };
@@ -298,7 +327,7 @@ namespace caw {
       
       idLabelPair_t   typeA[] = {
         { kColVarLayoutId, "col" },
-        { kRowVarLayoutId,  "row" },
+        { kRowVarLayoutId, "row" },
         { kInvalidId, nullptr }
       };
 
@@ -338,7 +367,62 @@ namespace caw {
       return rc;
       
     }
-    
+
+    /*
+    rc_t _get_var_ui_flags( const flow::ui_var_t* ui_var, unsigned& flags_ref )
+    {
+      rc_t rc = kOkRC;
+      const object_t* flags = nullptr;
+      flags_ref = 0;
+      
+      if( ui_var->ui_cfg != nullptr )
+      {
+        // get the optional ui desc 'flags' field
+        if((rc = ui_var->ui_cfg->getv_opt("flags",flags)) != kOkRC )
+        {
+          goto errLabel;
+        }
+
+        // if this ui desc has a 'flags' field
+        if( flags != nullptr )
+        {
+          // parse each field
+          for(unsigned i=0; i<flags->child_count(); ++i)
+          {
+            const object_t* s;
+            const char* v = nullptr;
+            unsigned flag = 0;
+
+            // get the cfg field
+            if((s = flags->child_ele(i)) == nullptr )
+            {
+              rc = cwLogError(kSyntaxErrorRC,"Error accessing the UI desc flag at index '%i'.",i);
+              goto errLabel;
+            }
+
+            // get the label value of the flag
+            if((rc = s->value(v)) != kOkRC )
+            {
+              rc = cwLogError(kSyntaxErrorRC,"Error parsing the UI desc flag at index '%i'.",i);
+              goto errLabel;
+            }
+
+            // get the flag value from a lookup table
+            if((rc = _ui_desc_flag_to_value(v,flag)) != kOkRC )
+            {
+              goto errLabel;
+            }
+
+            flags_ref |= flag;
+          }
+        }
+        
+      }
+
+    errLabel:
+      return rc;
+    }
+    */
     
     rc_t _create_var_ui( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned var_idx, unsigned container_uuId, unsigned var_label_uuId )
     {
@@ -581,19 +665,22 @@ namespace caw {
 
         varChDivUuId = uiPhysicalParentUuId(p->ioH, widgetListUuId );
 
-        if( var_mult_cnt <= 1 )
-          snprintf(label_buf,label_buf_charN,"%s",ui_var->title);
-        else
-          snprintf(label_buf,label_buf_charN,"%s:%i",ui_var->title,ui_var->label_sfx_id);
-
-        // create the var label
-        if((rc = _create_var_label(p, varLabelUuId, ui_var, label_buf, i)) != kOkRC )
+        if( cwIsNotFlag(ui_var->desc_flags,flow::kUiNoTitleVarDescFl ) )
         {
-          goto errLabel;
-        }
+          if( var_mult_cnt <= 1 )
+            snprintf(label_buf,label_buf_charN,"%s",ui_var->title);
+          else
+            snprintf(label_buf,label_buf_charN,"%s:%i",ui_var->title,ui_var->label_sfx_id);
 
-        label_buf[0] = '\0';
-        
+          // create the var label
+          if((rc = _create_var_label(p, varLabelUuId, ui_var, label_buf, i)) != kOkRC )
+          {
+            goto errLabel;
+          }
+
+          label_buf[0] = '\0';
+        }
+          
         for(unsigned ch_idx = 0; ch_idx<ch_cnt; ++ch_idx)
         {
           const flow::ui_var_t* ui_chan_var = ui_var;
