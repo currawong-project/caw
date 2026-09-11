@@ -9,6 +9,7 @@
 #include "cwObject.h"
 #include "cwFileSys.h"
 #include "cwIo.h"
+#include "cwIdTable.h"
 
 #include "cwVectOps.h"
 #include "cwMtx.h"

@@ -6,6 +6,7 @@
 #include "cwTest.h"
 #include "cwMem.h"
 #include "cwText.h"
+#include "cwIdTable.h"
 #include "cwObject.h"
 #include "cwFileSys.h"
 #include "cwIo.h"
@@ -1246,6 +1247,9 @@ int main( int argc, char* argv[] )
   // create the a minimal log for use during cfg. parsing.
   cw::log::createGlobal(log_args);
 
+  // create the global id/label table
+  cw::id_table::create_global();
+
   unsigned appIdMapN = sizeof(appIdMapA)/sizeof(appIdMapA[0]);
 
   // parse the command line and the cfg. file
@@ -1335,6 +1339,9 @@ errLabel:
   if((rc = destroy(app.ioH)) != kOkRC )
     rc = cwLogError(rc,"IO destroy failed.");
 
+  if((rc = id_table::destroy_global()) != kOkRC )
+    rc = cwLogError(rc,"id_table destroy failed.");
+  
   if((rc = destroy(app.uiH)) != kOkRC )
     rc = cwLogError(rc,"UI destroy failed.");
 
