@@ -130,5 +130,11 @@ sudo firewall-cmd --add-port=5004-5015/udp # To make permanent include: --perman
 See /etc/rtpmidi/default.ini for the default rtpmidid setup
 
 
-
-
+Setup three loop back ports:
+```
+sudo systemctl stop rtpmidid
+sudo modprobe -r snd-seq-dummy        # unload the current 
+sudo modprobe snd-seq-dummy ports=3   # create three loop-back port
+aconnect -1                           # look at the current setup
+sudo systemctl start rtpmidid
+```
