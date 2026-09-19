@@ -19,6 +19,7 @@
 
 #include "cwFlowDecl.h"
 #include "cwFlowValue.h"
+#include "cwFlowRecd.h"
 #include "cwFlowTypes.h"
 #include "cwFlow.h"
 #include "cwIoFlowCtl.h"
