@@ -786,6 +786,10 @@ rc_t _ui_echo_callback(app_t* app, const io::ui_msg_t& m )
     case kListWidgetId:
       rc = _on_variable_echo<unsigned>(app,m);
       break;
+
+    case kStatusWidgetId:
+      rc = _on_variable_echo<unsigned>(app,m);
+      break;
   }
   
   return rc;
