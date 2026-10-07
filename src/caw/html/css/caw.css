@@ -11,13 +11,13 @@
 
 .procList {
     display: block;
-    column-width: 200px;        /* or column-count: 3 */
+    /*column-width: 200px;*/        /* or column-count: 3 */
     column-count: 5;
     column-gap: 2px;    
 }
 
 .procPanel {
-    padding: 10px 10px;
+    padding: 5px 5px;
     break-inside: avoid;
     margin-bottom: 2px;
     border: 1px solid lightcyan;
@@ -53,3 +53,24 @@
 .uiList {
     height: 100%;
 }
+
+
+
+/* Custom layout for the event_trig_ctl proc. */
+.event_trig_ctl {
+  display: grid;
+  grid-template-columns: 100px 40px 70px;    /* define the width of every 3rd child of .event_trig_ctl */
+  place-items: center;                       /* center the items in the grid horz. and vert. */  
+}
+
+.event_trig_ctl .etc_status_col {
+    width:70px;
+}
+
+.etc_status_col .uiStatus {
+    place-items: center;
+    width:60px;
+    padding: 0px 0px;
+}
+
+
