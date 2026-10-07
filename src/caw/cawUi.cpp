@@ -208,8 +208,6 @@ namespace caw {
         rc = cwLogError(kInvalidArgRC,"No status array was provided in the var. desc. 'ui:' stanza.");
         goto errLabel;
       }
-
-
       
       if((rc = ui_var->ui_cfg->getv("status",statusD)) != kOkRC )
       {
@@ -322,6 +320,25 @@ namespace caw {
       return rc;
     }
 
+    rc_t _get_var_add_class_name( const flow::ui_var_t* ui_var, const char*& add_class_name_ref )
+    {
+      rc_t rc = kOkRC;
+      
+      if( ui_var->ui_cfg != nullptr )
+      {
+        // get the layout label from the cfg
+        if((rc = ui_var->ui_cfg->getv_opt("add_class",add_class_name_ref)) != kOkRC )
+        {
+          rc = cwLogError(rc,"Error parsing variable 'ui' additional class name cfg.");
+          goto errLabel;
+        }
+
+      }
+    errLabel:
+      return rc;
+      
+    }
+    
     rc_t _get_var_layout_id( const flow::ui_var_t* ui_var, unsigned& layout_id_ref )
     {
       rc_t        rc           = kOkRC;
@@ -344,6 +361,7 @@ namespace caw {
           rc = cwLogError(rc,"Error parsing variable 'ui' layout cfg.");
           goto errLabel;
         }
+
 
         // if no layout was specified then use the 'row' layout
         if( layout_label != nullptr )
@@ -631,6 +649,7 @@ namespace caw {
         unsigned        widgetListUuId = kInvalidId;
         unsigned        varLabelUuId   = kInvalidId;
         unsigned        varChDivUuId   = kInvalidId;
+        const char*     add_class_name = nullptr;
 
         // 
         if( ui_var->ch_idx != flow::kAnyChIdx )
@@ -661,13 +680,31 @@ namespace caw {
 
         varUuId = uiFindElementUuId(p->ioH, varListUuId, kVarPanelId, i );
 
+        // set the additional class name for this variable
+        if((rc = _get_var_add_class_name( ui_var, add_class_name )) != kOkRC )
+        {
+          goto errLabel;
+        }
+        else
+        {        
+          if( add_class_name != nullptr )
+            uiAppendClassName( p->ioH, varUuId, add_class_name );
+        }
+        
+
+        
         // Get the var label and the widget list UUid's
         varLabelUuId   = uiFindElementUuId(p->ioH, varUuId, kVarLabelId,   kInvalidId );
         widgetListUuId = uiFindElementUuId(p->ioH, varUuId, kWidgetListId, kInvalidId );
 
         varChDivUuId = uiPhysicalParentUuId(p->ioH, widgetListUuId );
 
-        if( cwIsNotFlag(ui_var->desc_flags,flow::kUiNoTitleVarDescFl ) )
+        // if there is not var title then hide the parent title div also
+        if( cwIsFlag(ui_var->desc_flags,flow::kUiNoTitleVarDescFl ) )
+        {
+          uiClearVisible( p->ioH, varLabelUuId );
+        }
+        else
         {
           if( var_mult_cnt <= 1 )
             snprintf(label_buf,label_buf_charN,"%s",ui_var->title);
@@ -771,6 +808,10 @@ namespace caw {
       if((rc = _create_var_list(p, varListPanelUuId, ui_proc )) != kOkRC )
         goto errLabel;
 
+      if( ui_proc->desc->add_class != nullptr )
+        uiAppendClassName( p->ioH, varListPanelUuId, ui_proc->desc->add_class );
+
+      
       if( ui_proc->internal_net )
       {
         flow::ui_net_t* ui_net = ui_proc->internal_net;
