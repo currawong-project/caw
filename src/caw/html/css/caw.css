@@ -59,7 +59,7 @@
 /* Custom layout for the event_trig_ctl proc. */
 .event_trig_ctl {
   display: grid;
-  grid-template-columns: 100px 40px 70px;    /* define the width of every 3rd child of .event_trig_ctl */
+  grid-template-columns: 100px 40px 70px;    /* define the width of every 3rd child of .event */
   place-items: center;                       /* center the items in the grid horz. and vert. */  
 }
 
@@ -74,3 +74,7 @@
 }
 
 
+.row_right_justify > .uiRow {
+    justify-content: right;
+    column-gap: 10px;
+}

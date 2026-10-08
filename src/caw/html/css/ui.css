@@ -181,6 +181,10 @@ label {
     color: black;
 }
 
+.uiStringDisp:empty {
+    display:none;
+}
+
 .text_disabled {
     color: darkgray;
 }

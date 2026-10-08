@@ -37,13 +37,7 @@ namespace caw {
       kColVarLayoutId,
       kRowVarLayoutId
     };
-/*
-    enum {
-      kNoUiDescFl         = 0x00,
-      kHorizontalUiDescFl = 0x01,
-      kNoTitleUiDescFl    = 0x02
-    };
-*/
+    
     typedef struct ui_str
     {
       io::handle_t              ioH;
@@ -51,29 +45,7 @@ namespace caw {
       const flow::ui_net_t*     ui_net;
       unsigned                  ui_net_idx;      
     } ui_t;
-/*
-    typedef struct {
-      unsigned flag;
-      const char* label;        
-    } flag_t;
     
-    flag_t uiDescFlagA[] =
-    {
-      { kHorizontalUiDescFl, "horizontal" },
-      { kNoTitleUiDescFl,    "no_title"   },
-      { kNoUiDescFl,         nullptr }
-    };
-
-    rc_t _ui_desc_flag_to_value( const char* label,unsigned& flags_ref )
-    {
-      rc_t rc = kOkRC;
-      for(unsigned i=0; uiDescFlagA[i].label!=nullptr; ++i)
-        if( textIsEqual(uiDescFlagA[i].label,label) )
-          return uiDescFlagA[i].flag;
-
-      return cwLogError(kSyntaxErrorRC,"The UI description flag '%s' is not valid.",cwStringNullGuard(label));
-    }
-*/
     ui_t* _handleToPtr( handle_t h )
     { return handleToPtr<handle_t,ui_t>(h); }
 
@@ -111,8 +83,14 @@ namespace caw {
       rc_t rc = kOkRC;
 
       const char* title = ui_var->label;
-      if( ui_var->title != nullptr && cwIsFlag(ui_var->desc_flags,flow::kUiTitleToLabelVarDescFl) )
-        title = ui_var->title;
+
+      if( ui_var->btn_title != nullptr )
+        title = ui_var->btn_title;
+      else
+      {
+        if( ui_var->title != nullptr && ui_var->title_to_label_fl )
+          title = ui_var->title;
+      }
       
       if((rc = uiCreateButton(p->ioH, uuid_ref, widgetListUuId, nullptr, kButtonWidgetId, kInvalidId, nullptr, title )) != kOkRC )
       {
@@ -320,7 +298,7 @@ namespace caw {
       return rc;
     }
 
-    rc_t _get_var_add_class_name( const flow::ui_var_t* ui_var, const char*& add_class_name_ref )
+    rc_t _get_var_desc_add_class_name( const flow::ui_var_t* ui_var, const char*& add_class_name_ref )
     {
       rc_t rc = kOkRC;
       
@@ -387,62 +365,6 @@ namespace caw {
       return rc;
       
     }
-
-    /*
-    rc_t _get_var_ui_flags( const flow::ui_var_t* ui_var, unsigned& flags_ref )
-    {
-      rc_t rc = kOkRC;
-      const object_t* flags = nullptr;
-      flags_ref = 0;
-      
-      if( ui_var->ui_cfg != nullptr )
-      {
-        // get the optional ui desc 'flags' field
-        if((rc = ui_var->ui_cfg->getv_opt("flags",flags)) != kOkRC )
-        {
-          goto errLabel;
-        }
-
-        // if this ui desc has a 'flags' field
-        if( flags != nullptr )
-        {
-          // parse each field
-          for(unsigned i=0; i<flags->child_count(); ++i)
-          {
-            const object_t* s;
-            const char* v = nullptr;
-            unsigned flag = 0;
-
-            // get the cfg field
-            if((s = flags->child_ele(i)) == nullptr )
-            {
-              rc = cwLogError(kSyntaxErrorRC,"Error accessing the UI desc flag at index '%i'.",i);
-              goto errLabel;
-            }
-
-            // get the label value of the flag
-            if((rc = s->value(v)) != kOkRC )
-            {
-              rc = cwLogError(kSyntaxErrorRC,"Error parsing the UI desc flag at index '%i'.",i);
-              goto errLabel;
-            }
-
-            // get the flag value from a lookup table
-            if((rc = _ui_desc_flag_to_value(v,flag)) != kOkRC )
-            {
-              goto errLabel;
-            }
-
-            flags_ref |= flag;
-          }
-        }
-        
-      }
-
-    errLabel:
-      return rc;
-    }
-    */
     
     rc_t _create_var_ui( ui_t* p, unsigned widgetListUuId, const flow::ui_var_t* ui_var, unsigned var_idx, unsigned container_uuId, unsigned var_label_uuId )
     {
@@ -680,8 +602,8 @@ namespace caw {
 
         varUuId = uiFindElementUuId(p->ioH, varListUuId, kVarPanelId, i );
 
-        // set the additional class name for this variable
-        if((rc = _get_var_add_class_name( ui_var, add_class_name )) != kOkRC )
+        // set the additional var desc class name for this variable
+        if((rc = _get_var_desc_add_class_name( ui_var, add_class_name )) != kOkRC )
         {
           goto errLabel;
         }
@@ -690,8 +612,12 @@ namespace caw {
           if( add_class_name != nullptr )
             uiAppendClassName( p->ioH, varUuId, add_class_name );
         }
-        
 
+        // set the additional var instance class name for this variable
+        if( textLength(ui_var->add_class) != 0 && textIsNotEqual(ui_var->add_class,add_class_name))
+        {
+          uiAppendClassName(p->ioH, varUuId, ui_var->add_class );
+        }
         
         // Get the var label and the widget list UUid's
         varLabelUuId   = uiFindElementUuId(p->ioH, varUuId, kVarLabelId,   kInvalidId );
@@ -700,7 +626,8 @@ namespace caw {
         varChDivUuId = uiPhysicalParentUuId(p->ioH, widgetListUuId );
 
         // if there is not var title then hide the parent title div also
-        if( cwIsFlag(ui_var->desc_flags,flow::kUiNoTitleVarDescFl ) )
+        //if( cwIsFlag(ui_var->desc_flags,flow::kUiNoTitleVarDescFl ) )
+        if( ui_var->no_title_fl )  
         {
           uiClearVisible( p->ioH, varLabelUuId );
         }
@@ -798,9 +725,16 @@ namespace caw {
       varListPanelUuId = uiFindElementUuId( p->ioH, procPanelUuId, kVarListPanelId,   kInvalidId );
       
       // set the proc title
-      snprintf(label_buf,label_buf_charN,"%s %s:%i",ui_proc->desc->label,ui_proc->label,ui_proc->label_sfx_id);      
-      uiSendValue( p->ioH, uiFindElementUuId(p->ioH, procPanelUuId, kProcInstLabelId, kInvalidId), label_buf );
-
+      if( ui_proc->proc->flags & flow::kUiTitleProcFl )
+      {
+        if( ui_proc->proc->ui_title == nullptr )
+          snprintf(label_buf,label_buf_charN,"%s %s:%i",ui_proc->desc->label,ui_proc->label,ui_proc->label_sfx_id);
+        else
+          snprintf(label_buf,label_buf_charN,"%s",ui_proc->proc->ui_title);
+        
+        uiSendValue( p->ioH, uiFindElementUuId(p->ioH, procPanelUuId, kProcInstLabelId, kInvalidId), label_buf );
+      }
+      
       //if((rc = _load_proc_presets(p,ui_proc,procPanelUuId)) != kOkRC )
       //{
       //}
