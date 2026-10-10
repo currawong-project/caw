@@ -132,9 +132,14 @@ See /etc/rtpmidi/default.ini for the default rtpmidid setup
 
 Setup three loop back ports:
 ```
+# 1. Disable Wifi.
+
+# 2. Enable Static IP
+
 sudo systemctl stop rtpmidid
 sudo modprobe -r snd-seq-dummy        # unload the current 
 sudo modprobe snd-seq-dummy ports=3   # create three loop-back port
-aconnect -1                           # look at the current setup
+aconnect -1                           # look at the current setup - the MIDI throughs should be available
 sudo systemctl start rtpmidid
+aconnect -1                           # look at the current setup - the RTP MIDI interface should be available
 ```
