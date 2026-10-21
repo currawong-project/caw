@@ -59,12 +59,12 @@
 /* Custom layout for the event_trig_ctl proc. */
 .event_trig_ctl {
   display: grid;
-  grid-template-columns: 100px 40px 70px;    /* define the width of every 3rd child of .event */
+  grid-template-columns: 110px 40px 60px;    /* define the width of every 3rd child of .event */
   place-items: center;                       /* center the items in the grid horz. and vert. */  
 }
 
 .event_trig_ctl .etc_status_col {
-    width:70px;
+    width:60px;
 }
 
 .etc_status_col .uiStatus {
