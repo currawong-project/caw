@@ -35,7 +35,8 @@ enum {
   kTestStubSelId,
   kHelpSelId,
 
-  kPgmLoadThreadId
+  kPgmLoadThreadId,
+  kUiPollingTimerId
 };
 
 
@@ -69,6 +70,13 @@ typedef struct app_str
 
   const object_t*       tracer_cfg;
   tracer::handle_t      tracerH;
+
+  unsigned              ui_timeout_ms;     // max. time the app. will block on the websockets interface waiting for UI activity
+  unsigned              ui_update_poll_ms; // polling period for periodically updated UI elemements
+
+  unsigned              profile_overrun_cnt; // last saved profile overrun count value.
+
+  bool quit_fl;
   
 } app_t;
 
@@ -89,6 +97,9 @@ ui::appIdMap_t  appIdMapA[] = {
   { kPanelDivId,     kPgmLoadBtnId,   "pgmLoadBtnId" },
   { kPanelDivId,     kPgmPrintBtnId,  "pgmPrintBtnId" },
   { kPanelDivId,     kRunCheckId,     "runCheckId" },
+  { kPanelDivId,     kProfileCheckId, "profileCheckId" },
+  { kPanelDivId,     kProfileOverCntId,"profileOverCntId" },
+  { kPanelDivId,     kProfileRptId,    "profileRptId" },
 
   { kPanelDivId,     kLogId,           "logId" },
   
@@ -156,8 +167,7 @@ rc_t _tracer_terminate( app_t& app )
       cwLogError(rc,"Tracer write failed.");
     
     if((rc = destroy(app.tracerH)) != kOkRC )
-      rc = cwLogError(rc,"Tracer destroy failed.");
-    
+      rc = cwLogError(rc,"Tracer destroy failed.");    
   }
 
   app.tracer_cfg = nullptr;
@@ -266,7 +276,8 @@ rc_t _on_load_pgm_thread_complete(app_t* app)
 
   unsigned pgmPresetSelUuId = io::uiFindElementUuId( app->ioH, kPgmPresetSelId );
   unsigned pgmLoadBtnUuId   = io::uiFindElementUuId( app->ioH, kPgmLoadBtnId );
-
+  unsigned profileCheckUuid = io::uiFindElementUuId( app->ioH, kProfileCheckId );
+  
   // populate the preset menu
   for(unsigned i=0; i<preset_cnt; ++i)
   {
@@ -285,6 +296,7 @@ rc_t _on_load_pgm_thread_complete(app_t* app)
   }
   
   uiSetEnable( app->ioH, pgmLoadBtnUuId, true );
+  uiSetEnable( app->ioH, profileCheckUuid, true );
 
 errLabel:
   return rc;
@@ -443,6 +455,35 @@ rc_t _on_pgm_run( app_t* app, bool run_check_fl )
   return rc;
 }
 
+rc_t _on_pgm_profile_enable(app_t* app, bool enable_fl)
+{
+  rc_t rc = kOkRC;
+
+  if( !app->ioFlowH.isValid() )
+    goto errLabel;
+  
+  if((rc = program_profile_enable(app->ioFlowH,enable_fl)) != kOkRC )
+  {
+    rc = cwLogError(rc,"Program profile enable/disable failed.");
+    goto errLabel;
+  }
+  else
+  {
+    unsigned profileRptCheckUuid = io::uiFindElementUuId( app->ioH, kProfileRptId );
+    
+    uiSetEnable( app->ioH,profileRptCheckUuid, enable_fl );
+  }
+  
+errLabel:
+  return rc;
+}
+      
+rc_t _on_pgm_profile_report_btn(app_t* app)
+{
+  return program_profile_report(app->ioFlowH);
+}
+
+
 rc_t _on_ui_init( app_t* app )
 {
   rc_t rc = kOkRC;
@@ -512,6 +553,7 @@ rc_t _on_reload_cfg_file(app_t* app)
   unsigned pgm_index        = kInvalidIdx;
   bool     pgm_init_fl      = false;
   char*    pgm_title        = nullptr;
+  unsigned pgm_sel_uuid     = kInvalidId;
   
   cwLogInfo("Reload:Tear-down");
 
@@ -608,6 +650,10 @@ rc_t _on_reload_cfg_file(app_t* app)
   // If the program was originally initialized - then init. it again.
   if( pgm_init_fl )
     rc = _on_pgm_load(app);
+
+  // set the program select drop-down to show the pgm associated with 'pgm_title'.
+  if((pgm_sel_uuid = parentAndAppIdToUuId( app->ioH, kPanelDivId, kPgmSelId )) != kInvalidId )
+    uiSendValue(app->ioH,pgm_sel_uuid,kPgmBaseSelId+pgm_index);
   
 errLabel:
   if( rc != kOkRC )
@@ -619,6 +665,27 @@ errLabel:
   return rc;  
 }
 
+rc_t _io_polling_timer_callback(app_t* app, const io::timer_msg_t* m )
+{
+  rc_t rc = kOkRC;
+
+  if( app->ioFlowH.isValid() && program_is_initialized(app->ioFlowH) && program_profile_is_enabled(app->ioFlowH) )
+  {
+    unsigned overrun_cnt = program_profile_overrun_count( app->ioFlowH );
+    
+    if( overrun_cnt != app->profile_overrun_cnt )
+    {
+      unsigned uuid = io::uiFindElementUuId( app->ioH, kProfileOverCntId );
+      
+      uiSendValue(app->ioH,uuid,overrun_cnt);
+      
+      app->profile_overrun_cnt = overrun_cnt;
+      
+    }
+  }
+  
+  return rc;
+}
 
 rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
 {
@@ -628,7 +695,8 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
   {
     case kQuitBtnId:
       mem::clear_warn_on_alloc();
-      io::stop( app->ioH );
+      app->quit_fl = true;
+      //io::stop( app->ioH );
       break;
       
     case kIoReportBtnId:
@@ -673,6 +741,14 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       _on_pgm_run(app,m.value->u.b);
       break;
 
+    case kProfileCheckId:
+      _on_pgm_profile_enable(app,m.value->u.b);
+      break;
+      
+    case kProfileRptId:
+      _on_pgm_profile_report_btn(app);
+      break;
+      
     case kLogId:      
       break;
 
@@ -861,6 +937,10 @@ rc_t _io_callback( void* arg, const io::msg_t* m )
       break;
       
     case io::kTimerTId:
+      if( m->u.timer->id == kUiPollingTimerId )
+      {
+        //_io_polling_timer_callback(app,m->u.timer);
+      }
       break;
       
     case io::kSerialTId:
@@ -1103,6 +1183,29 @@ errLabel:
       
 }
 
+rc_t _parse_app_from_io_cfg(app_t& app)
+{
+  rc_t rc = kOkRC;
+
+  const object_t* app_cfg = nullptr;
+  if((app_cfg = app.io_cfg->find_child("app")) == nullptr )
+  {
+    cwLogWarning("The 'io' cfg has no 'app' stanza.");
+    goto errLabel;
+  }
+
+  if((rc = app_cfg->getv("ui_timeout_ms",app.ui_timeout_ms,
+                    "ui_update_poll_ms",app.ui_update_poll_ms)) != kOkRC )
+  {
+    rc = cwLogError(kSyntaxErrorRC,"Parsing failed on 'io' 'app' stanza.");
+    goto errLabel;    
+  }
+
+  
+errLabel:
+  return rc;
+}
+
 rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
 {
   rc_t rc = kOkRC;
@@ -1165,6 +1268,13 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
       goto errLabel;
     }
 
+    // parse the 'app' stanza from the IO cfg file.
+    if((rc = _parse_app_from_io_cfg(app)) != kOkRC )
+    {
+      goto errLabel;
+    }
+       
+
     // if the 'exec' mode was selected then disable the UI
     if( app.cmd_line_action_id == kExecSelId )
     {
@@ -1187,9 +1297,17 @@ errLabel:
 rc_t _io_main( app_t& app )
 {
   rc_t rc = kOkRC;
+  rc_t rc0 = kOkRC;
 
   // we are running in real-time mode - use the log queue
   log::set_flags( log::globalHandle(), log::flags(log::globalHandle()) | log::kSkipQueueFl );
+
+  // create the UI polling timer
+  if((rc = timerCreate( app.ioH, "main_ui_poll", kUiPollingTimerId, app.ui_update_poll_ms*1000, false )) != kOkRC )
+  {
+    rc = cwLogError(rc,"The UI polling timer create failed.");
+    goto errLabel;
+  }
 
   // start the IO framework instance
   if((rc = io::start(app.ioH)) != kOkRC )
@@ -1198,28 +1316,69 @@ rc_t _io_main( app_t& app )
     goto errLabel;    
   }
 
+  // Start the UI polling timer
+  if((rc = timerStart( app.ioH, timerIdToIndex( app.ioH, kUiPollingTimerId ))) != kOkRC )
+  {
+    rc = cwLogError(rc,"The UI polling timer start failed.");
+    goto errLabel;
+  }
+
+  
   // execute the IO framework
   while( !io::isShuttingDown(app.ioH))
   {
     log::exec(log::globalHandle());
     
     // This call will block on the websocket handle
-    // for up to io_cfg->ui.websockTimeOutMs milliseconds
-    io::exec(app.ioH,50);
+    // for up to app.ui_timeout_ms milliseconds
+    io::exec(app.ioH,app.ui_timeout_ms);
 
+    // If the application has been requested to quit 
+    if( app.quit_fl )
+    {
+      // stop the io framework - we do this outside of an IO callback to prevent problems 
+      // with threads blocked on the 'async' mutex in the IO callback from being unable to
+      // exit cleanly
+      if((rc = io::stop(app.ioH)) != kOkRC )
+      {
+        rc0 = cwLogError(rc,"IO API stop failed.");
+      }
+      
+      app.quit_fl = false;
+      
+    }
+    
     if( is_exec_complete(app.ioFlowH) )
       break;
   }
 
-  // stop the io framework
+  // Stop the UI polling timer
+  if((rc = timerStop( app.ioH, timerIdToIndex( app.ioH, kUiPollingTimerId ))) != kOkRC )
+  {
+    rc = cwLogError(rc,"The UI polling timer stop failed.");
+    goto errLabel;
+  }
+
+  // stop the io framework (is probably already stopped)
   if((rc = io::stop(app.ioH)) != kOkRC )
   {
     rc = cwLogError(rc,"IO API stop failed.");
     goto errLabel;    
   }
+  
+  // destroy the UI polling timer
+  if((rc = timerDestroy(app.ioH, timerIdToIndex( app.ioH, kUiPollingTimerId ) )) != kOkRC )
+  {
+    rc = cwLogError(rc,"UI polling timer destroy failed.");
+    goto errLabel;
+  }
 
+  // if profiling in 'exec' mode
+  if( app.cmd_line_action_id==kExecSelId && program_profile_is_enabled( app.ioFlowH ) )
+    program_profile_report( app.ioFlowH );
+   
 errLabel:
-  return rc;
+  return rcSelect(rc,rc0);
 }
 
 
@@ -1242,7 +1401,9 @@ int main( int argc, char* argv[] )
   app_t app = {}; // all zero
   log::log_args_t log_args = {};
   
-  app.pgm_preset_idx = kInvalidIdx;
+  app.pgm_preset_idx    = kInvalidIdx;
+  app.ui_update_poll_ms = 250;
+  app.ui_timeout_ms     = 50;
 
   // seed the random number generator with the time
   std::srand(static_cast<unsigned int>(std::time(0)));

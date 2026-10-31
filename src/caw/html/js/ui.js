@@ -376,12 +376,14 @@ function ui_select_set_from_option_app_id( sel_ele, option_appId )
 {
     var i;
     for(i=0; i<sel_ele.options.length; ++i)
+    {
 	if( sel_ele.options[i].appId == option_appId )
         {
 	    sel_ele.selectedIndex = i;
 	    return;
         }
-
+    }
+    
     ui_error("Select option index not found.");    
 }
 

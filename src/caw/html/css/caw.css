@@ -54,7 +54,25 @@
     height: 100%;
 }
 
+/* main window controls with labels */
+.uiCtlDiv:has(> .main_ctl_div) {
+    justify-content:center;
+    margin-left:5px;
+    background-color:powderblue;
+}
 
+/* main window control labels */
+label:has(~ .main_ctl_div), .main_ctl_div ~ label {
+    display: inline-flex;
+    align-items: center;
+    width: 50px;    
+}
+
+.uiNumbDisp.main_ctl_div {
+    display: inline-flex;
+    align-items: center;
+    width: 35px;
+}
 
 /* Custom layout for the event_trig_ctl proc. */
 .event_trig_ctl {

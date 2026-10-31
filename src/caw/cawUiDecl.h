@@ -22,6 +22,10 @@ namespace caw {
       kPgmPrintBtnId,
       kRunCheckId,
 
+      kProfileCheckId,
+      kProfileOverCntId,
+      kProfileRptId,
+
       kLogId,
     
       kRootNetPanelId,
