@@ -255,7 +255,7 @@ rc_t _load_pgm_thread_func( void* arg )
     goto errLabel;      
   }
 
-  // 
+  // Instantiate the UI from the loaded program network
   if((rc = caw::ui::create(app->uiH, app->ioH, app->ioFlowH, ui_net )) != kOkRC )
   {
     rc = cwLogError(rc,"Network UI create failed.");
@@ -1183,7 +1183,7 @@ errLabel:
       
 }
 
-rc_t _parse_app_from_io_cfg(app_t& app)
+rc_t _parse_app_stanza_from_io_cfg(app_t& app)
 {
   rc_t rc = kOkRC;
 
@@ -1269,7 +1269,7 @@ rc_t _parse_main_cfg( app_t& app, int argc, char* argv[] )
     }
 
     // parse the 'app' stanza from the IO cfg file.
-    if((rc = _parse_app_from_io_cfg(app)) != kOkRC )
+    if((rc = _parse_app_stanza_from_io_cfg(app)) != kOkRC )
     {
       goto errLabel;
     }
