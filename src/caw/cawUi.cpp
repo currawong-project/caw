@@ -43,7 +43,8 @@ namespace caw {
       io::handle_t              ioH;
       io_flow_ctl::handle_t     ioFlowH;
       const flow::ui_net_t*     ui_net;
-      unsigned                  ui_net_idx;      
+      unsigned                  ui_net_idx;
+      unsigned                  ui_proc_idx;  // Next proc chanId. Unique across all networks.
     } ui_t;
     
     ui_t* _handleToPtr( handle_t h )
@@ -559,8 +560,6 @@ namespace caw {
         { kInvalidId, nullptr }
       };
 
-      
-
       // for each var
       for(unsigned i=0; i<ui_proc->varN; ++i)
       {
@@ -726,6 +725,25 @@ namespace caw {
         uiAppendClassName( p->ioH, uuId, ui_proc->ui_add_class );
     }
     
+    // Find a UI parent in this proc's network, and then in each enclosing network.
+    const flow::ui_proc_t* _find_ui_parent_proc( const flow::ui_proc_t* ui_proc )
+    {
+      const flow::ui_net_t* net = ui_proc->ui_net;
+
+      while( net != nullptr )
+      {
+        unsigned sfx_id = ui_proc->ui_parent_sfx_id == kInvalidId ? net->poly_idx : ui_proc->ui_parent_sfx_id;
+
+        for(unsigned i=0; i<net->procN; ++i)
+          if( net->procA[i].label_sfx_id == sfx_id && textIsEqual(net->procA[i].label,ui_proc->ui_parent_label) )
+            return net->procA + i;
+
+        net = net->parent_ui_proc == nullptr ? nullptr : net->parent_ui_proc->ui_net;
+      }
+
+      return nullptr;
+    }
+
     rc_t _create_proc_ui( ui_t* p, unsigned netParentUuId, unsigned parentListUuId, flow::ui_proc_t* ui_proc, unsigned proc_idx )
     {
       rc_t           rc               = kOkRC;
@@ -735,7 +753,7 @@ namespace caw {
       const char*    proc_panel_name  = "procPanelId";
       const char*    ui_list_name     = nullptr;
       bool           is_container_fl  = false;
-      unsigned       logParentUuId   = parentListUuId;
+      unsigned       logParentUuId    = parentListUuId;
       const unsigned label_buf_charN  = 127;
       char           label_buf[ label_buf_charN+1 ];
 
@@ -762,35 +780,35 @@ namespace caw {
       // if the proc-inst UI specifies it's parent UI container
       if( ui_proc->ui_parent_label != nullptr )
       {
-        flow::proc_t* parent_proc = nullptr;
+        const flow::ui_proc_t* parent_ui_proc = nullptr;
 
         // find the proc instance that represents the parent UI container
-        if((rc = flow::proc_find( *ui_proc->proc->net->flow->net, ui_proc->ui_parent_label, ui_proc->ui_parent_sfx_id, parent_proc )) != kOkRC )
+        if((parent_ui_proc = _find_ui_parent_proc(ui_proc)) == nullptr )
         {
-          rc = cwLogError(rc,"The UI parent proc '%s:%i' could not be found.",ui_proc->ui_parent_label, ui_proc->ui_parent_sfx_id);
+          rc = cwLogError(kEleNotFoundRC,"The UI parent proc '%s' could not be found.",cwStringNullGuard(ui_proc->ui_parent_label));
           goto errLabel;
         }
 
         // Verify that the parent proc is a container.
-        if( !_proc_is_container(parent_proc->ui_proc) )
+        if( !_proc_is_container(parent_ui_proc) )
         {
-          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' is not a UI container.",ui_proc->ui_parent_label, ui_proc->ui_parent_sfx_id);
+          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' is not a UI container.",cwStringNullGuard(ui_proc->ui_parent_label), parent_ui_proc->label_sfx_id);
           goto errLabel;
         }
         
         // Verify that the parent proc already has a UI element.
-        if( parent_proc->ui_proc->ui_uuid == kInvalidId )
+        if( parent_ui_proc->ui_uuid == kInvalidId )
         {
-          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' does not have a valid UI element. Perhaps it has not yet been created?",ui_proc->ui_parent_label, ui_proc->ui_parent_sfx_id);
+          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' does not have a valid UI element. Perhaps it has not yet been created?",cwStringNullGuard(ui_proc->ui_parent_label), parent_ui_proc->label_sfx_id);
           goto errLabel;
         }
 
-        parentListUuId = parent_proc->ui_proc->ui_uuid;
+        parentListUuId = parent_ui_proc->ui_uuid;
 
         // Containers have no appId, so child panels are registered under the container's logical parent.
         if((logParentUuId = uiLogicalParentUuId( p->ioH, parentListUuId )) == kInvalidId )
         {
-          rc = cwLogError(kEleNotFoundRC,"The UI logical parent UUId could not be determined for the parent '%s:%i'.",cwStringNullGuard(ui_proc->ui_parent_label), ui_proc->ui_parent_sfx_id);
+          rc = cwLogError(kEleNotFoundRC,"The UI logical parent UUId could not be determined for the parent '%s:%i'.",cwStringNullGuard(ui_proc->ui_parent_label), parent_ui_proc->label_sfx_id);
           goto errLabel;
         }
       }
@@ -814,7 +832,7 @@ namespace caw {
 
       // format the default or custom title - we do this even when kUiTitleProcFl is not set to be sure it is available for _create_net_ui() below
       if( ui_proc->ui_title == nullptr )
-        snprintf(label_buf,label_buf_charN,"%s %s:%i",ui_proc->desc->label,ui_proc->label,ui_proc->label_sfx_id);
+        snprintf(label_buf,label_buf_charN,"%s %s:%i",cwStringNullGuard(ui_proc->desc->label),cwStringNullGuard(ui_proc->label),ui_proc->label_sfx_id);
       else
         snprintf(label_buf,label_buf_charN,"%s",ui_proc->ui_title);
       
@@ -893,9 +911,23 @@ namespace caw {
         goto errLabel;
       }
 
-      netPanelUuId =  uiFindElementUuId( p->ioH, netListUuId, kNetPanelId, p->ui_net_idx++ );
-      netTitleUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kNetTitleId, kInvalidId );
-      procListUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kProcListId, kInvalidId );
+      if((netPanelUuId =  uiFindElementUuId( p->ioH, netListUuId, kNetPanelId, p->ui_net_idx++ )) != kInvalidId )
+      {
+        cwLogError(kSyntaxErrorRC,"The net panel UI uuid lookup failed.");
+        goto errLabel;
+      }
+      
+      if((netTitleUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kNetTitleId, kInvalidId )) != kInvalidId )
+      {
+        cwLogError(kSyntaxErrorRC,"The net title UI uuid lookup failed.");
+        goto errLabel;
+      }
+      
+      if((procListUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kProcListId, kInvalidId )) != kInvalidId )
+      {
+        cwLogError(kSyntaxErrorRC,"The net panel proc-list uuid lookup failed.");
+        goto errLabel;
+      }
 
       //printf("netlist:%i title:%i netpanel:%i proclist:%i : poly_idx:%i\n",netListUuId, netTitleUuId, netPanelUuId, procListUuId, ui_net->poly_idx);
 
@@ -905,13 +937,16 @@ namespace caw {
         const unsigned label_buf_charN = 127;
         char           label_buf[ label_buf_charN+1 ];
         snprintf(label_buf,label_buf_charN,"Network: %s:%i",title,ui_net->poly_idx);
-        uiSendValue( p->ioH, netTitleUuId, label_buf);
+        if((rc = uiSendValue( p->ioH, netTitleUuId, label_buf)) != kOkRC )
+        {
+          goto errLabel;
+        }
         
       }
       
       for(unsigned i=0; i<ui_net->procN; ++i)
       {
-        if((rc = _create_proc_ui( p, netListUuId, procListUuId, ui_net->procA+i, i )) != kOkRC )
+        if((rc = _create_proc_ui( p, netListUuId, procListUuId, ui_net->procA+i, p->ui_proc_idx++ )) != kOkRC )
         {
           goto errLabel;
         }
