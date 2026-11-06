@@ -708,13 +708,13 @@ namespace caw {
 
     // Returns the name of the template element that holds child procs,
     // or nullptr if this proc is not a UI container.
-    const char* _proc_ui_list_name( const flow::proc_t* proc )
+    const char* _proc_ui_list_name( const flow::ui_proc_t* ui_proc )
     {
-      return proc->ui_list_name != nullptr ? proc->ui_list_name : proc->class_desc->ui->ui_list_name;
+      return ui_proc->ui_list_name != nullptr ? ui_proc->ui_list_name : ui_proc->desc->ui_list_name;
     }
 
-    bool _proc_is_container( const flow::proc_t* proc )
-    { return _proc_ui_list_name(proc)!=nullptr; }
+    bool _proc_is_container( const flow::ui_proc_t* ui_proc )
+    { return _proc_ui_list_name(ui_proc)!=nullptr; }
 
     // Append the proc class and proc instance 'add_class' names to a UI element.
     void _append_proc_class_names( ui_t* p, const flow::ui_proc_t* ui_proc, unsigned uuId )
@@ -722,11 +722,11 @@ namespace caw {
       if( ui_proc->desc->add_class != nullptr )
         uiAppendClassName( p->ioH, uuId, ui_proc->desc->add_class );
 
-      if( textLength(ui_proc->proc->ui_add_class) != 0 && textIsNotEqual(ui_proc->proc->ui_add_class,ui_proc->desc->add_class) )
-        uiAppendClassName( p->ioH, uuId, ui_proc->proc->ui_add_class );
+      if( textLength(ui_proc->ui_add_class) != 0 && textIsNotEqual(ui_proc->ui_add_class,ui_proc->desc->add_class) )
+        uiAppendClassName( p->ioH, uuId, ui_proc->ui_add_class );
     }
     
-    rc_t _create_proc_ui( ui_t* p, unsigned netParentUuId, unsigned parentListUuId, const flow::ui_proc_t* ui_proc, unsigned proc_idx )
+    rc_t _create_proc_ui( ui_t* p, unsigned netParentUuId, unsigned parentListUuId, flow::ui_proc_t* ui_proc, unsigned proc_idx )
     {
       rc_t           rc               = kOkRC;
       unsigned       procPanelUuId    = kInvalidId;
@@ -744,8 +744,8 @@ namespace caw {
 
       // The proc may specify an alternate ui.cfg template.
       // Proc instance values take precedence over proc class values.      
-      if( ui_proc->proc->ui_template != nullptr )
-        ui_template = ui_proc->proc->ui_template;
+      if( ui_proc->ui_template != nullptr )
+        ui_template = ui_proc->ui_template;
       else
       {
         if( ui_proc->desc->ui_template != nullptr )
@@ -753,44 +753,44 @@ namespace caw {
       }
       
       // If the proc specifies the name of the template element that holds child procs then this proc is a UI container.
-      if( (ui_list_name  = _proc_ui_list_name(ui_proc->proc)) != nullptr )
+      if( (ui_list_name  = _proc_ui_list_name(ui_proc)) != nullptr )
       {
         proc_panel_name = ui_list_name;
         is_container_fl = true;
       }
 
       // if the proc-inst UI specifies it's parent UI container
-      if( ui_proc->proc->ui_parent_label != nullptr )
+      if( ui_proc->ui_parent_label != nullptr )
       {
         flow::proc_t* parent_proc = nullptr;
 
         // find the proc instance that represents the parent UI container
-        if((rc = flow::proc_find( *ui_proc->proc->net->flow->net, ui_proc->proc->ui_parent_label, ui_proc->proc->ui_parent_sfx_id, parent_proc )) != kOkRC )
+        if((rc = flow::proc_find( *ui_proc->proc->net->flow->net, ui_proc->ui_parent_label, ui_proc->ui_parent_sfx_id, parent_proc )) != kOkRC )
         {
-          rc = cwLogError(rc,"The UI parent proc '%s:%i' could not be found.",ui_proc->proc->ui_parent_label, ui_proc->proc->ui_parent_sfx_id);
+          rc = cwLogError(rc,"The UI parent proc '%s:%i' could not be found.",ui_proc->ui_parent_label, ui_proc->ui_parent_sfx_id);
           goto errLabel;
         }
 
         // Verify that the parent proc is a container.
-        if( !_proc_is_container(parent_proc) )
+        if( !_proc_is_container(parent_proc->ui_proc) )
         {
-          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' is not a UI container.",ui_proc->proc->ui_parent_label, ui_proc->proc->ui_parent_sfx_id);
+          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' is not a UI container.",ui_proc->ui_parent_label, ui_proc->ui_parent_sfx_id);
           goto errLabel;
         }
         
         // Verify that the parent proc already has a UI element.
-        if( parent_proc->ui_uuid == kInvalidId )
+        if( parent_proc->ui_proc->ui_uuid == kInvalidId )
         {
-          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' does not have a valid UI element.",ui_proc->proc->ui_parent_label, ui_proc->proc->ui_parent_sfx_id);
+          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' does not have a valid UI element. Perhaps it has not yet been created?",ui_proc->ui_parent_label, ui_proc->ui_parent_sfx_id);
           goto errLabel;
         }
 
-        parentListUuId = parent_proc->ui_uuid;
+        parentListUuId = parent_proc->ui_proc->ui_uuid;
 
         // Containers have no appId, so child panels are registered under the container's logical parent.
         if((logParentUuId = uiLogicalParentUuId( p->ioH, parentListUuId )) == kInvalidId )
         {
-          rc = cwLogError(kEleNotFoundRC,"The UI logical parent UUId could not be determined for the parent '%s:%i'.",cwStringNullGuard(ui_proc->proc->ui_parent_label), ui_proc->proc->ui_parent_sfx_id);
+          rc = cwLogError(kEleNotFoundRC,"The UI logical parent UUId could not be determined for the parent '%s:%i'.",cwStringNullGuard(ui_proc->ui_parent_label), ui_proc->ui_parent_sfx_id);
           goto errLabel;
         }
       }
@@ -809,14 +809,14 @@ namespace caw {
       }
 
       // save the uuid of the new proc panel - if this is a container we will want it later
-      ui_proc->proc->ui_uuid = procPanelUuId;
+      ui_proc->ui_uuid = procPanelUuId;
 
 
       // format the default or custom title - we do this even when kUiTitleProcFl is not set to be sure it is available for _create_net_ui() below
-      if( ui_proc->proc->ui_title == nullptr )
+      if( ui_proc->ui_title == nullptr )
         snprintf(label_buf,label_buf_charN,"%s %s:%i",ui_proc->desc->label,ui_proc->label,ui_proc->label_sfx_id);
       else
-        snprintf(label_buf,label_buf_charN,"%s",ui_proc->proc->ui_title);
+        snprintf(label_buf,label_buf_charN,"%s",ui_proc->ui_title);
       
       // set the proc title
       if( ui_proc->proc->flags & flow::kUiTitleProcFl )
