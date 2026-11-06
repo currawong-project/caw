@@ -1,6 +1,28 @@
+html, body {
+    height: 100%;
+    margin: 0;
+}
 
+/* body is a column so uiAppDiv gets exactly the height left below
+   appTitleDiv (height:100% on uiAppDiv would overflow the viewport). */
 body {
+    display: flex;
+    flex-direction: column;
     background-color: LightCyan;
+}
+
+#appTitleDiv {
+    flex: none;
+}
+
+/* Root of the dynamically created UI (see ui.js main()).
+   min-height:0 lets it shrink below its content so that inner
+   elements, rather than the page, get the scroll bars. */
+.uiAppDiv {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 

@@ -9,18 +9,48 @@
 
 }
 
+/* procPanels are packed top-to-bottom into columns which wrap to the right.
+
+   This is a row-wrapping flexbox rotated by writing-mode:vertical-lr,
+   (each flex 'line' is a column) because, unlike flex-flow:column wrap
+   or multicol, its width grows to include every wrapped column. That lets
+   rootNetPanel shrink-wrap the procPanels so the log abuts them.
+
+   The wrap height must be definite while the width is being computed, so
+   it comes from the content row (a size container, see below) rather than
+   from the flex height chain. Each network (e.g. poly instances) therefore
+   gets a full-height block and the net list scrolls between them. */
 .procList {
-    display: block;
-    /*column-width: 200px;*/        /* or column-count: 3 */
-    column-count: 5;
-    column-gap: 2px;    
+    height: 100cqh;
+    display: flex;
+    flex-flow: row wrap;
+    writing-mode: vertical-lr;
+    align-content: flex-start;   /* columns packed to the left */
+    align-items: flex-start;     /* each panel keeps its own width */
+    gap: 2px;
+}
+
+.procList > * {
+    writing-mode: horizontal-tb; /* restore normal text inside the panels */
 }
 
 .procPanel {
     padding: 5px 5px;
-    break-inside: avoid;
-    margin-bottom: 2px;
     border: 1px solid lightcyan;
+}
+
+.procColListPanel {
+    padding: 5px 5px;
+    border: 1px solid lightcyan;
+}
+
+.procColList {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;     /* fill the .uiCol width instead of being centered */
+    align-items: stretch;    /* child panels match the width of the widest child */
+    gap: 2px;
+    border: 1px solid black;
 }
 
  
@@ -50,8 +80,80 @@
 }
 
 
-.uiList {
-    height: 100%;
+
+/* ---- Height chain -------------------------------------------------
+   body > .uiAppDiv > main .uiPanel > [toolbar .uiRow, content .uiRow]
+   The content row (net panel + log) fills the remaining height and the
+   net list and log each scroll independently. The content row has no
+   class of its own so it is identified as the row containing the log.
+*/
+
+/* main panel */
+.uiAppDiv > .uiPanel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* toolbar row keeps its natural height */
+.uiAppDiv > .uiPanel > .uiRow:not(:has(> .uiLogDiv)) {
+    flex: none;
+}
+
+/* content row */
+.uiRow:has(> .uiLogDiv) {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;    /* children fill the row height (not centered) */
+    container-type: size;    /* provides 100cqh for .procList */
+}
+
+/* rootNetPanel: shrink-wraps the procPanels horizontally, fills vertically.
+   It only shrinks below that width when the log reaches its min-width,
+   in which case the net list scrolls horizontally. */
+.uiRow:has(> .uiLogDiv) > .uiPanel {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.uiRow:has(> .uiLogDiv) > .uiPanel > .uiListDiv {
+    flex: 1;
+    min-height: 0;
+}
+
+.uiList.netList {
+    flex: 1;
+    min-height: 0;
+    height: auto;            /* override ui.css fixed 100px */
+    overflow-x: auto;        /* override ui.css 'hidden' (see rootNetPanel) */
+    scrollbar-gutter: stable; /* reserve the v-scrollbar width so it is
+                                 included in the shrink-wrapped width
+                                 (otherwise the last column is clipped) */
+}
+
+/* log takes the remaining width and height */
+.uiRow:has(> .uiLogDiv) > .uiLogDiv {
+    flex: 1;
+    min-width: 300px;        /* the net panel gives way below this width */
+    min-height: 0;
+    align-items: stretch;
+}
+
+.uiRow:has(> .uiLogDiv) > .uiLogDiv > .uiLog {
+    flex: 1;
+    min-height: 0;
+    height: auto;            /* override ui.css fixed 600px */
+    overflow-x: auto;        /* scroll long lines (ui.css has 'hidden') */
+}
+
+/* ui.css gives this label width:100% plus padding-left:10px, which
+   overflowed the window by 10px. */
+.uiRow:has(> .uiLogDiv) > .uiLogDiv > label {
+    box-sizing: border-box;
 }
 
 /* main window controls with labels */
@@ -96,3 +198,5 @@ label:has(~ .main_ctl_div), .main_ctl_div ~ label {
     justify-content: right;
     column-gap: 10px;
 }
+
+
