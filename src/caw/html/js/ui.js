@@ -916,27 +916,10 @@ function ui_set_value( d )
 
 function _ui_modify_class( ele, classLabelArg, enableFl )
 {
-    let classLabel  = " " + classLabelArg; // prefix the class label with a space
-
-    //console.log(ele.id + " " + classLabelArg + " " + enableFl )
-
-    let isEnabledFl = false;
-    
-    if( ele.hasOwnProperty("className") )
-	isEnabledFl = ele.className.includes(classLabel)
+    if( enableFl )
+	ele.classList.add(classLabelArg)
     else
-	ele.className = ""
-
-    // if the class is not already enabled/disabled
-    if( enableFl != isEnabledFl )
-    {
-	if( enableFl )
-	    ele.className += classLabel;
-	else
-	    ele.className = ele.className.replace(classLabel, "");
-    }
-
-    //console.log(ele.id + " " + ele.className + " " + enableFl )
+	ele.classList.remove(classLabelArg)
 }
 
 function ui_set_select( ele, enableFl )
@@ -958,22 +941,8 @@ function ui_set_clickable( ele, enableFl )
 
 function ui_set_visible( ele, enableFl )
 {    
-    if(enableFl)
-    {
-	if(ele.hasOwnProperty("style_display") )
-	{
-	    ele.style.display = ele.style_display;
-	}
-	else
-	{
-	    ele.style.display = "block";
-	}
-    }
-    else
-    {
-	ele.style_display = ele.style.display;
-	ele.style.display = "none";
-    }
+    // Clearing the inline display restores the value from the element's CSS classes.
+    ele.style.display = enableFl ? "" : "none";
 }
 
 function ui_set_enable( ele, enableFl )
@@ -1037,7 +1006,8 @@ function ui_append_class(ele,className)
 
 function ui_remove_class(ele,className)
 {
-    ele.className = ele.className.replace(className,"")
+    // classList.remove() rejects names containing spaces, so split a multi-class value first.
+    ele.classList.remove( ...className.split(/\s+/).filter(Boolean) )
 }
 
 
