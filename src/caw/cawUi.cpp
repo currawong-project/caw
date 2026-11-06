@@ -705,58 +705,173 @@ namespace caw {
     
     rc_t _create_net_ui( ui_t* p, unsigned netParentUuId, const flow::ui_net_t* ui_net, const char* label_prefix );
 
+
+    // Returns the name of the template element that holds child procs,
+    // or nullptr if this proc is not a UI container.
+    const char* _proc_ui_list_name( const flow::proc_t* proc )
+    {
+      return proc->ui_list_name != nullptr ? proc->ui_list_name : proc->class_desc->ui->ui_list_name;
+    }
+
+    bool _proc_is_container( const flow::proc_t* proc )
+    { return _proc_ui_list_name(proc)!=nullptr; }
+
+    // Append the proc class and proc instance 'add_class' names to a UI element.
+    void _append_proc_class_names( ui_t* p, const flow::ui_proc_t* ui_proc, unsigned uuId )
+    {
+      if( ui_proc->desc->add_class != nullptr )
+        uiAppendClassName( p->ioH, uuId, ui_proc->desc->add_class );
+
+      if( textLength(ui_proc->proc->ui_add_class) != 0 && textIsNotEqual(ui_proc->proc->ui_add_class,ui_proc->desc->add_class) )
+        uiAppendClassName( p->ioH, uuId, ui_proc->proc->ui_add_class );
+    }
+    
     rc_t _create_proc_ui( ui_t* p, unsigned netParentUuId, unsigned parentListUuId, const flow::ui_proc_t* ui_proc, unsigned proc_idx )
     {
-      rc_t           rc              = kOkRC;
-      unsigned       procPanelUuId   = kInvalidId;
+      rc_t           rc               = kOkRC;
+      unsigned       procPanelUuId    = kInvalidId;
       unsigned       varListPanelUuId = kInvalidId;
-      const unsigned label_buf_charN = 127;
+      const char*    ui_template      = "proc";
+      const char*    proc_panel_name  = "procPanelId";
+      const char*    ui_list_name     = nullptr;
+      bool           is_container_fl  = false;
+      unsigned       logParentUuId   = parentListUuId;
+      const unsigned label_buf_charN  = 127;
       char           label_buf[ label_buf_charN+1 ];
 
       if( !p->ui_net->ui_create_fl && !(ui_proc->proc->flags & flow::kUiCreateProcFl) )
         goto errLabel;
+
+      // The proc may specify an alternate ui.cfg template.
+      // Proc instance values take precedence over proc class values.      
+      if( ui_proc->proc->ui_template != nullptr )
+        ui_template = ui_proc->proc->ui_template;
+      else
+      {
+        if( ui_proc->desc->ui_template != nullptr )
+          ui_template = ui_proc->desc->ui_template;
+      }
       
-      if((rc = uiCreateFromRsrc(   p->ioH, "proc", parentListUuId, proc_idx )) != kOkRC )
+      // If the proc specifies the name of the template element that holds child procs then this proc is a UI container.
+      if( (ui_list_name  = _proc_ui_list_name(ui_proc->proc)) != nullptr )
+      {
+        proc_panel_name = ui_list_name;
+        is_container_fl = true;
+      }
+
+      // if the proc-inst UI specifies it's parent UI container
+      if( ui_proc->proc->ui_parent_label != nullptr )
+      {
+        flow::proc_t* parent_proc = nullptr;
+
+        // find the proc instance that represents the parent UI container
+        if((rc = flow::proc_find( *ui_proc->proc->net->flow->net, ui_proc->proc->ui_parent_label, ui_proc->proc->ui_parent_sfx_id, parent_proc )) != kOkRC )
+        {
+          rc = cwLogError(rc,"The UI parent proc '%s:%i' could not be found.",ui_proc->proc->ui_parent_label, ui_proc->proc->ui_parent_sfx_id);
+          goto errLabel;
+        }
+
+        // Verify that the parent proc is a container.
+        if( !_proc_is_container(parent_proc) )
+        {
+          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' is not a UI container.",ui_proc->proc->ui_parent_label, ui_proc->proc->ui_parent_sfx_id);
+          goto errLabel;
+        }
+        
+        // Verify that the parent proc already has a UI element.
+        if( parent_proc->ui_uuid == kInvalidId )
+        {
+          rc = cwLogError(kInvalidStateRC,"The UI parent proc '%s:%i' does not have a valid UI element.",ui_proc->proc->ui_parent_label, ui_proc->proc->ui_parent_sfx_id);
+          goto errLabel;
+        }
+
+        parentListUuId = parent_proc->ui_uuid;
+
+        // Containers have no appId, so child panels are registered under the container's logical parent.
+        if((logParentUuId = uiLogicalParentUuId( p->ioH, parentListUuId )) == kInvalidId )
+        {
+          rc = cwLogError(kEleNotFoundRC,"The UI logical parent UUId could not be determined for the parent '%s:%i'.",cwStringNullGuard(ui_proc->proc->ui_parent_label), ui_proc->proc->ui_parent_sfx_id);
+          goto errLabel;
+        }
+      }
+
+      // create the 'proc-panel'
+      if((rc = uiCreateFromRsrc(   p->ioH, ui_template, parentListUuId, proc_idx )) != kOkRC )
       {
         goto errLabel;
       }
 
-      procPanelUuId    = uiFindElementUuId( p->ioH, parentListUuId, kProcPanelId,   proc_idx );
-      varListPanelUuId = uiFindElementUuId( p->ioH, procPanelUuId, kVarListPanelId,   kInvalidId );
+      // get the proc panel to which a title and variable controls may be added
+      if((procPanelUuId = uiFindElementUuId( p->ioH, logParentUuId, proc_panel_name, proc_idx )) == kInvalidId )
+      {
+        rc = cwLogError(kEleNotFoundRC,"The proc-panel-uuid could not be determined for the proc panel named '%s' proc index:%i.",cwStringNullGuard(proc_panel_name),proc_idx);
+        goto errLabel;                        
+      }
+
+      // save the uuid of the new proc panel - if this is a container we will want it later
+      ui_proc->proc->ui_uuid = procPanelUuId;
+
+
+      // format the default or custom title - we do this even when kUiTitleProcFl is not set to be sure it is available for _create_net_ui() below
+      if( ui_proc->proc->ui_title == nullptr )
+        snprintf(label_buf,label_buf_charN,"%s %s:%i",ui_proc->desc->label,ui_proc->label,ui_proc->label_sfx_id);
+      else
+        snprintf(label_buf,label_buf_charN,"%s",ui_proc->proc->ui_title);
       
       // set the proc title
       if( ui_proc->proc->flags & flow::kUiTitleProcFl )
       {
-        if( ui_proc->proc->ui_title == nullptr )
-          snprintf(label_buf,label_buf_charN,"%s %s:%i",ui_proc->desc->label,ui_proc->label,ui_proc->label_sfx_id);
-        else
-          snprintf(label_buf,label_buf_charN,"%s",ui_proc->proc->ui_title);
+        // A container's label has no appId, so it is found by name under the same logical parent as its list.
+        unsigned uuid = is_container_fl
+          ? uiFindElementUuId(p->ioH, logParentUuId, "procInstLabel", proc_idx)
+          : uiFindElementUuId(p->ioH, procPanelUuId, kProcInstLabelId, kInvalidId);
         
-        uiSendValue( p->ioH, uiFindElementUuId(p->ioH, procPanelUuId, kProcInstLabelId, kInvalidId), label_buf );
+        if( uuid == kInvalidId )
+        {
+          rc = cwLogError(kEleNotFoundRC,"The label element for the title '%s' could not be found.",label_buf);
+          goto errLabel;
+        }
+        
+        uiSendValue( p->ioH, uuid, label_buf );
       }
       
       //if((rc = _load_proc_presets(p,ui_proc,procPanelUuId)) != kOkRC )
       //{
       //}
 
-      if((rc = _create_var_list(p, varListPanelUuId, ui_proc )) != kOkRC )
-        goto errLabel;
-
-      if( ui_proc->desc->add_class != nullptr )
-        uiAppendClassName( p->ioH, varListPanelUuId, ui_proc->desc->add_class );
-
-      
-      if( ui_proc->internal_net )
+      if( is_container_fl )
       {
-        flow::ui_net_t* ui_net = ui_proc->internal_net;
-        for(; ui_net!=nullptr; ui_net=ui_net->poly_link)
-          if((rc = _create_net_ui(p,netParentUuId,ui_net,label_buf)) != kOkRC )
-          {
-            rc = cwLogError(rc,"Internal net UI create failed.");
-            goto errLabel;
-          }
+        // append the 'addClassName' to this container - procPanelUuId is the container's list element 
+        _append_proc_class_names( p, ui_proc, procPanelUuId );
       }
+      else
+      {
+        // get the var list uuid
+        if((varListPanelUuId = uiFindElementUuId( p->ioH, procPanelUuId, kVarListPanelId,   kInvalidId )) == kInvalidId )
+        {
+          rc = cwLogError(kEleNotFoundRC,"The 'varListPanelUuid' could not be found.");
+          goto errLabel;
+        }
 
+        // create th var list and fill it with var UI widgets
+        if((rc = _create_var_list(p, varListPanelUuId, ui_proc )) != kOkRC )
+          goto errLabel;
+
+        // if an 'addClassName' exists for this proc then add it here
+        _append_proc_class_names( p, ui_proc, varListPanelUuId );
+
+        if( ui_proc->internal_net )
+        {
+          flow::ui_net_t* ui_net = ui_proc->internal_net;
+          for(; ui_net!=nullptr; ui_net=ui_net->poly_link)
+            if((rc = _create_net_ui(p,netParentUuId,ui_net,label_buf)) != kOkRC )
+            {
+              rc = cwLogError(rc,"Internal net UI create failed.");
+              goto errLabel;
+            }
+        }
+      }
+      
     errLabel:
       if(rc != kOkRC )
         rc = cwLogError(rc,"Processor UI creation failed on %s:%i.",cwStringNullGuard(ui_proc->label),ui_proc->label_sfx_id);
