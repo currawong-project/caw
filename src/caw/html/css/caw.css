@@ -18,10 +18,11 @@
 
    The wrap height must be definite while the width is being computed, so
    it comes from the content row (a size container, see below) rather than
-   from the flex height chain. Each network (e.g. poly instances) therefore
-   gets a full-height block and the net list scrolls between them. */
+   from the flex height chain. It is a max-height so that each network
+   (e.g. poly instances) is only as tall as its content. The networks stack
+   directly and the net list scrolls when they exceed the window height. */
 .procList {
-    height: 100cqh;
+    max-height: 100cqh;
     display: flex;
     flex-flow: row wrap;
     writing-mode: vertical-lr;
