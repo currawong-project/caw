@@ -77,6 +77,8 @@ typedef struct app_str
   unsigned              profile_overrun_cnt; // last saved profile overrun count value.
 
   bool quit_fl;
+
+  bool ui_init_fl;  // true once _on_ui_init() has run
   
 } app_t;
 
@@ -489,6 +491,8 @@ rc_t _on_ui_init( app_t* app )
   rc_t rc = kOkRC;
   unsigned pgmSelUuId = io::uiFindElementUuId( app->ioH, kPgmSelId );
   unsigned pgm_cnt = program_count(app->ioFlowH);
+
+  app->ui_init_fl = true;
   
   // create pgm menu
   for(unsigned i=0; i<pgm_cnt; ++i)
@@ -543,6 +547,19 @@ errLabel:
   }
 
   return rc;
+}
+
+// Convert the UI value to 'T' and assign it to the variable.
+template< typename T >
+rc_t _on_variable_ui_value( app_t* app, const io::ui_msg_t& m )
+{
+  rc_t rc;
+  T    value;
+
+  if((rc = io::uiValueTo(m.value,value)) != kOkRC )
+    return rc;
+
+  return _on_variable_value(app,m,value);
 }
 
 rc_t _on_reload_cfg_file(app_t* app)
@@ -722,11 +739,19 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       break;
       
     case kPgmSelId:
-      _on_pgm_select(app,m.value->u.u);
+      {
+        unsigned optId;
+        if((rc = io::uiValueTo(m.value,optId)) == kOkRC )
+          _on_pgm_select(app,optId);
+      }
       break;
-      
+
     case kPgmPresetSelId:
-      _on_pgm_preset_select(app,m.value->u.u);
+      {
+        unsigned optId;
+        if((rc = io::uiValueTo(m.value,optId)) == kOkRC )
+          _on_pgm_preset_select(app,optId);
+      }
       break;
 
     case kPgmLoadBtnId:
@@ -738,11 +763,19 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       break;
       
     case kRunCheckId:
-      _on_pgm_run(app,m.value->u.b);
+      {
+        bool fl;
+        if((rc = io::uiValueTo(m.value,fl)) == kOkRC )
+          _on_pgm_run(app,fl);
+      }
       break;
 
     case kProfileCheckId:
-      _on_pgm_profile_enable(app,m.value->u.b);
+      {
+        bool fl;
+        if((rc = io::uiValueTo(m.value,fl)) == kOkRC )
+          _on_pgm_profile_enable(app,fl);
+      }
       break;
       
     case kProfileRptId:
@@ -753,39 +786,39 @@ rc_t _ui_value_callback(app_t* app, const io::ui_msg_t& m )
       break;
 
     case kButtonWidgetId:
-      _on_variable_value(app,m,m.value->u.b);
+      _on_variable_ui_value<bool>(app,m);
       break;
-      
+
     case kCheckWidgetId:
-      rc = _on_variable_value(app,m,m.value->u.b);
+      rc = _on_variable_ui_value<bool>(app,m);
       break;
-      
+
     case kIntWidgetId:
-      rc = _on_variable_value(app,m,(int)m.value->u.d);
+      rc = _on_variable_ui_value<int>(app,m);
       break;
 
     case kUIntWidgetId:
-      rc = _on_variable_value(app,m,(unsigned)m.value->u.d);
+      rc = _on_variable_ui_value<unsigned>(app,m);
       break;
-      
+
     case kFloatWidgetId:
-      rc = _on_variable_value(app,m,(float)m.value->u.d);
+      rc = _on_variable_ui_value<float>(app,m);
       break;
-      
+
     case kDoubleWidgetId:
-      rc = _on_variable_value(app,m,m.value->u.d);
+      rc = _on_variable_ui_value<double>(app,m);
       break;
 
     case kStringWidgetId:
-      rc = _on_variable_value(app,m,m.value->u.s);
+      rc = _on_variable_ui_value<const char*>(app,m);
       break;
 
     case kListWidgetId:
-      rc = _on_variable_value(app,m,m.value->u.u);
+      rc = _on_variable_ui_value<unsigned>(app,m);
       break;
 
     case kStatusWidgetId:
-      rc = _on_variable_value(app,m,m.value->u.u);
+      rc = _on_variable_ui_value<unsigned>(app,m);
       break;
     
   }
@@ -835,6 +868,27 @@ rc_t _ui_echo_callback(app_t* app, const io::ui_msg_t& m )
   
   switch( m.appId )
   {
+    // The toolbar controls request their state when they are created.
+    // This restores them on a browser reload or second client.
+    case kRunCheckId:
+      rc = uiSendValue(app->ioH, m.uuId, app->run_fl );
+      break;
+
+    case kPgmSelId:
+      if( program_current_index(app->ioFlowH) != kInvalidIdx )
+        rc = uiSendValue(app->ioH, m.uuId, (unsigned)(kPgmBaseSelId + program_current_index(app->ioFlowH)) );
+      break;
+
+    case kPgmPresetSelId:
+      if( app->pgm_preset_idx != kInvalidIdx )
+        rc = uiSendValue(app->ioH, m.uuId, (unsigned)(kPgmPresetBaseSelId + app->pgm_preset_idx) );
+      break;
+
+    case kProfileCheckId:
+      if( program_current_index(app->ioFlowH) != kInvalidIdx )
+        rc = uiSendValue(app->ioH, m.uuId, program_profile_is_enabled(app->ioFlowH) );
+      break;
+
     case kCheckWidgetId:
       rc = _on_variable_echo<bool>(app,m);
       break;
@@ -887,7 +941,9 @@ rc_t _ui_callback( app_t* app, const io::ui_msg_t& m )
           
     case ui::kInitOpId:
       cwLogInfo("UI Init.");
-      if( app->cmd_line_action_id == kUiSelId )
+      // A browser reload or second client must not re-run startup, because
+      // _on_pgm_select() unloads the current program.
+      if( app->cmd_line_action_id == kUiSelId && !app->ui_init_fl )
         _on_ui_init(app);
       break;
 
@@ -1494,22 +1550,25 @@ int main( int argc, char* argv[] )
   
 
 errLabel:
-
+{
+  rc_t rc0, rc1, rc2, rc3, rc4;
+  rc0 = rc1 = rc2 = rc3 = rc4 = kOkRC;
+  
   if( app.uiH.isValid() )
-    if((rc = caw::ui::destroy(app.uiH)) != kOkRC )
-      rc = cwLogError(rc,"UI destroy failed.");
+    if((rc0 = caw::ui::destroy(app.uiH)) != kOkRC )
+      rc0 = cwLogError(rc0,"UI destroy failed.");
   
-  if((rc = destroy(app.ioFlowH)) != kOkRC )
-    rc = cwLogError(rc,"IO Flow destroy failed.");
+  if((rc1 = destroy(app.ioFlowH)) != kOkRC )
+    rc1 = cwLogError(rc1,"IO Flow destroy failed.");
   
-  if((rc = destroy(app.ioH)) != kOkRC )
-    rc = cwLogError(rc,"IO destroy failed.");
+  if((rc2 = destroy(app.ioH)) != kOkRC )
+    rc2 = cwLogError(rc2,"IO destroy failed.");
 
-  if((rc = id_table::destroy_global()) != kOkRC )
-    rc = cwLogError(rc,"id_table destroy failed.");
+  if((rc3 = id_table::destroy_global()) != kOkRC )
+    rc3 = cwLogError(rc3,"id_table destroy failed.");
   
-  if((rc = destroy(app.uiH)) != kOkRC )
-    rc = cwLogError(rc,"UI destroy failed.");
+  if((rc4 = destroy(app.uiH)) != kOkRC )
+    rc4 = cwLogError(rc4,"UI destroy failed.");
 
   _tracer_terminate(app);
 
@@ -1522,7 +1581,8 @@ errLabel:
 
   cw::log::destroyGlobal();
 
-  return rc;
+  return rcSelect(rc,rc0,rc1,rc2,rc3,rc4);
+}
 }
 
 
