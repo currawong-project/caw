@@ -401,7 +401,7 @@ namespace caw {
           {
             int min_val = std::numeric_limits<int>::min();
             int max_val = std::numeric_limits<int>::max();
-            rc = _create_number_widget(p,widgetListUuId,ui_var, kIntWidgetId, flow::kIntTFl, title, widget_uuId, min_val, max_val, 1, 1 );
+            rc = _create_number_widget(p,widgetListUuId,ui_var, kIntWidgetId, flow::kIntTFl, title, widget_uuId, min_val, max_val, 1, 0 );
           }
           break;          
           
@@ -409,13 +409,13 @@ namespace caw {
           {
             unsigned min_val = 0;
             unsigned max_val = std::numeric_limits<unsigned>::max();
-            rc = _create_number_widget(p,widgetListUuId,ui_var, kUIntWidgetId, flow::kUIntTFl, title,widget_uuId, min_val, max_val, 1, 1 );
+            rc = _create_number_widget(p,widgetListUuId,ui_var, kUIntWidgetId, flow::kUIntTFl, title,widget_uuId, min_val, max_val, 1, 0 );
           }
           break;
 
         case kFloatWidgetId:
           {
-            float min_val = std::numeric_limits<float>::min();
+            float min_val = std::numeric_limits<float>::lowest();
             float max_val = std::numeric_limits<float>::max();
             rc = _create_number_widget(p,widgetListUuId,ui_var, kFloatWidgetId, flow::kFloatTFl, title, widget_uuId, min_val, max_val, 0.1, 2 );
           }
@@ -423,7 +423,7 @@ namespace caw {
           
         case kDoubleWidgetId:
           {
-            double min_val = std::numeric_limits<float>::min();
+            double min_val = std::numeric_limits<float>::lowest();
             double max_val = std::numeric_limits<float>::max();
             rc = _create_number_widget(p,widgetListUuId,ui_var, kDoubleWidgetId, flow::kDoubleTFl, title, widget_uuId, min_val, max_val, 0.1, 2 );
           }
@@ -911,21 +911,21 @@ namespace caw {
         goto errLabel;
       }
 
-      if((netPanelUuId =  uiFindElementUuId( p->ioH, netListUuId, kNetPanelId, p->ui_net_idx++ )) != kInvalidId )
+      if((netPanelUuId =  uiFindElementUuId( p->ioH, netListUuId, kNetPanelId, p->ui_net_idx++ )) == kInvalidId )
       {
-        cwLogError(kSyntaxErrorRC,"The net panel UI uuid lookup failed.");
+        rc = cwLogError(kSyntaxErrorRC,"The net panel UI uuid lookup failed.");
         goto errLabel;
       }
       
-      if((netTitleUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kNetTitleId, kInvalidId )) != kInvalidId )
+      if((netTitleUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kNetTitleId, kInvalidId )) == kInvalidId )
       {
-        cwLogError(kSyntaxErrorRC,"The net title UI uuid lookup failed.");
+        rc = cwLogError(kSyntaxErrorRC,"The net title UI uuid lookup failed.");
         goto errLabel;
       }
       
-      if((procListUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kProcListId, kInvalidId )) != kInvalidId )
+      if((procListUuId =  uiFindElementUuId( p->ioH, netPanelUuId, kProcListId, kInvalidId )) == kInvalidId )
       {
-        cwLogError(kSyntaxErrorRC,"The net panel proc-list uuid lookup failed.");
+        rc = cwLogError(kSyntaxErrorRC,"The net panel proc-list uuid lookup failed.");
         goto errLabel;
       }
 
