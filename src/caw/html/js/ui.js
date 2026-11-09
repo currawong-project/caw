@@ -205,6 +205,13 @@ function ui_create_ele( parent_ele, ele_type, d, dfltClassName )
 	if( d.hasOwnProperty('enable') )
 	    ui_set_enable( ele, d.enable )
 
+	if( d.hasOwnProperty('visible') )
+	    ui_set_visible( ele, d.visible )
+
+	// Not ui_set_select(), which would send a 'select' message back to the app.
+	if( d.hasOwnProperty('select') )
+	    _ui_modify_class( ele, "uiSelected", d.select )
+
 	// console.log("Created: " + ele_type  + " parent:" + d.parentUuId + " id:" + ele.id + " appId:" + ele.appId + " class:" + ele.className + " acn:" + acn )
 	// console.log("D:",d)
 	
@@ -452,13 +459,22 @@ function ui_set_str_display( ele_id, value )
     }
 }
 
+// 'enable_able' must exist before ui_set_enable() can apply the disabled text style.
+function ui_make_enable_able( ele, d )
+{
+    ele.className += " enable_able"
+
+    if( d.hasOwnProperty('enable') && !d.enable )
+	ui_set_enable( ele, false )
+}
+
 function ui_create_str_display( parent_ele, d )
 {
     var ele = ui_create_ctl( parent_ele, "label", d.title, d, "uiStringDisp" );
     
     if( ele != null )
     {
-	ele.className += " enable_able"
+	ui_make_enable_able( ele, d )
 	if( d.hasOwnProperty('value') )
 	{
 	    ui_set_str_display(ele.id, d.value);
@@ -505,7 +521,7 @@ function ui_create_status( parent_ele, d )
     
     if( ele != null )
     {
-	ele.className += " enable_able"
+	ui_make_enable_able( ele, d )
 	ele.statusA = [ ]  // array to be filled with { label, value, color } records in ui_attach_status_state()
 
 	// when the status is created it has no status records yet and so it has
@@ -552,13 +568,24 @@ function ui_create_string( parent_ele, d )
 
 function _ui_send_number( ele )
 {
-    var val = 0;
-    if( ele.decpl == 0 )
-	val = Number.parseInt(ele.value)
-    else
-	val = Number.parseFloat(ele.value)
+    var val      = 0;
+    var valid_fl = true;
 
-    if( !(ele.minValue<=val && val<=ele.maxValue))
+    if( ele.decpl == 0 )
+    {
+	// parseInt() and parseFloat() stop at the first invalid character, so '1.5' in an
+	// integer box or '1.5x' in a float box would pass the range check as '1' or '1.5',
+	// but the app rejects them because it parses the raw text.
+	valid_fl = /^\s*[-+]?\d+$/.test(ele.value)
+	val      = Number.parseInt(ele.value)
+    }
+    else
+    {
+	valid_fl = /^\s*[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(ele.value)
+	val      = Number.parseFloat(ele.value)
+    }
+
+    if( !valid_fl || !(ele.minValue<=val && val<=ele.maxValue))
     {
 	ele.style.borderColor = "red"
 	ui_send_corrupt_state(ele)
